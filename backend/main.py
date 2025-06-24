@@ -444,12 +444,19 @@ async def root():
         "message": "HydroGPT API is running", 
         "version": "1.0.0",
         "status": "ready",
+        "database_connected": hydrogpt_service.db_pool is not None,
+        "claude_configured": hydrogpt_service.claude_client is not None,
         "endpoints": [
             "/api/query - Process natural language queries",
             "/api/default-map-data - Get sublocation map data",
             "/docs - API documentation"
         ]
     }
+
+@app.get("/health")
+async def health_check():
+    """Simple health check endpoint for Railway"""
+    return {"status": "healthy", "service": "HydroGPT"}
 
 @app.post("/api/query")
 async def process_query(request: QueryRequest):
