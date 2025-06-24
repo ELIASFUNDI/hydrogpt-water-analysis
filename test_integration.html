@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HydroGPT Integration Test</title>
+</head>
+<body>
+    <h1>🔍 HydroGPT Integration Test</h1>
+    
+    <h2>Backend Status</h2>
+    <div id="backend-status">Testing...</div>
+    
+    <h2>Map Data Sample</h2>
+    <div id="map-data">Loading...</div>
+    
+    <h2>Water Points Data</h2>
+    <div id="water-points">Loading...</div>
+
+    <script>
+        // Test backend connection
+        fetch('http://localhost:8000/')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('backend-status').innerHTML = 
+                    `✅ Backend: ${data.message} (v${data.version})`;
+            })
+            .catch(error => {
+                document.getElementById('backend-status').innerHTML = 
+                    `❌ Backend Error: ${error.message}`;
+            });
+
+        // Test map data
+        fetch('http://localhost:8000/api/default-map-data')
+            .then(response => response.json())
+            .then(data => {
+                if (data.features && data.features.length > 0) {
+                    const sample = data.features.slice(0, 3);
+                    const html = sample.map(feature => 
+                        `<div style="margin: 10px; padding: 10px; border: 1px solid #ccc;">
+                            <strong>${feature.properties.name}</strong><br>
+                            Accessibility: ${feature.properties.accessibility.toFixed(3)}<br>
+                            Category: ${feature.properties.category}<br>
+                            Population: ${feature.properties.population.toLocaleString()}
+                        </div>`
+                    ).join('');
+                    document.getElementById('map-data').innerHTML = 
+                        `✅ ${data.features.length} sublocations loaded:<br><br>${html}`;
+                } else {
+                    document.getElementById('map-data').innerHTML = 
+                        `❌ No map data received`;
+                }
+            })
+            .catch(error => {
+                document.getElementById('map-data').innerHTML = 
+                    `❌ Map Data Error: ${error.message}`;
+            });
+
+        // Test water points
+        fetch('http://localhost:8000/api/water-points')
+            .then(response => response.json())
+            .then(data => {
+                if (data.features && data.features.length > 0) {
+                    const sample = data.features.slice(0, 3);
+                    const html = sample.map(feature => 
+                        `<div style="margin: 10px; padding: 10px; border: 1px solid #ccc;">
+                            <strong>${feature.properties.name || 'Unnamed'}</strong><br>
+                            Source: ${feature.properties.water_source}<br>
+                            Capacity: ${feature.properties.capacity_score}/3<br>
+                            Status: ${feature.properties.status}
+                        </div>`
+                    ).join('');
+                    document.getElementById('water-points').innerHTML = 
+                        `✅ ${data.features.length} water points loaded:<br><br>${html}`;
+                } else {
+                    document.getElementById('water-points').innerHTML = 
+                        `❌ No water points data received`;
+                }
+            })
+            .catch(error => {
+                document.getElementById('water-points').innerHTML = 
+                    `❌ Water Points Error: ${error.message}`;
+            });
+    </script>
+</body>
+</html>

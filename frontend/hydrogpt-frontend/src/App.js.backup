@@ -1,0 +1,2374 @@
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import './App.css';
+
+const API_BASE_URL = 'http://localhost:8000';
+
+function App() {
+  const [mapData, setMapData] = useState(null);
+  const [waterPointsData, setWaterPointsData] = useState(null);
+  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const [chatMessages, setChatMessages] = useState([
+    {
+      type: 'bot',
+      message: '🌊 Hello, I am HydroGPT!\n\nI am your intelligent water accessibility analysis assistant for Mbeere South Subcounty. I provide comprehensive insights using advanced SCM-G2SFCA methodology to help water planning agencies and decision-makers optimize water resource management.\n\nTry asking:\n• "Which areas have the worst water access?"\n• "Show me accessibility statistics"\n• "What is SCM-G2SFCA methodology?"\n• "Compare different sublocations"\n• "Generate accessibility reports"\n\nWhat would you like to know?',
+      timestamp: new Date().toISOString()
+    }
+  ]);
+  const [chartData, setChartData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [mapInstructions, setMapInstructions] = useState(null);
+  const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [spatialContext, setSpatialContext] = useState(null);
+  const [isTypingIntelligence, setIsTypingIntelligence] = useState(false);
+
+  // Auto-scroll to bottom when messages change
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100); // Small delay to ensure DOM update
+  };
+
+  useEffect(() => {
+    // Only auto-scroll to bottom if there's more than the initial welcome message
+    if (chatMessages.length > 1) {
+      scrollToBottom();
+    } else {
+      // For initial welcome message, scroll to top
+      setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = 0;
+        }
+      }, 100);
+    }
+  }, [chatMessages]);
+
+  useEffect(() => {
+    loadMapData();
+    loadWaterPoints();
+  }, []);
+
+  const loadMapData = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/default-map-data`);
+      setMapData(response.data);
+      console.log('✅ Map data loaded:', response.data.features?.length, 'sublocations');
+    } catch (error) {
+      console.error('❌ Map data error:', error);
+      setChatMessages(prev => [...prev, {
+        type: 'bot',
+        message: '⚠️ Connection Error: Unable to load water accessibility data.\n\nPlease check:\n• Backend server is running\n• Database connection is active\n• Network connectivity is stable\n\nContact your system administrator if the problem persists.',
+        timestamp: new Date().toISOString()
+      }]);
+    }
+  };
+
+  const loadWaterPoints = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/water-points`);
+      setWaterPointsData(response.data);
+      console.log('✅ Water points loaded:', response.data.features?.length, 'points');
+    } catch (error) {
+      console.error('❌ Water points error:', error);
+    }
+  };
+
+  const handleSendMessage = async (message) => {
+    if (!message.trim() || isLoading) return;
+
+    setIsLoading(true);
+    
+    const userMessage = {
+      type: 'user',
+      message: message.trim(),
+      timestamp: new Date().toISOString()
+    };
+    setChatMessages(prev => [...prev, userMessage]);
+    setInputValue('');
+    
+    // Immediate scroll for user message
+    setTimeout(() => scrollToBottom(), 50);
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/query`, {
+        query: message.trim(),
+        user_id: 'hydrogpt_user'
+      });
+
+      const result = response.data;
+
+      const botMessage = {
+        type: 'bot',
+        message: result.text_response,
+        timestamp: result.timestamp || new Date().toISOString(),
+        confidence: result.confidence_level || 'medium',
+        spatial_context: result.spatial_context
+      };
+      setChatMessages(prev => [...prev, botMessage]);
+
+      // 🧠 ADVANCED AI INTELLIGENCE EXTRACTION
+      
+      // Handle AI-controlled map and chart instructions
+      if (result.map_instructions) {
+        handleMapInstructions(result.map_instructions);
+      }
+      
+      if (result.chart_instructions) {
+        handleChartInstructions(result.chart_instructions);
+      }
+
+      // Extract proactive suggestions from AI response
+      if (result.proactive_suggestions) {
+        setAiSuggestions(result.proactive_suggestions);
+      }
+
+      // Extract and display spatial context
+      if (result.spatial_context) {
+        setSpatialContext(result.spatial_context);
+      }
+
+      // Show confidence level in UI (for transparency)
+      if (result.confidence_level === 'low') {
+        console.log('⚠️ AI has low confidence in this response');
+      }
+      
+      // Fallback: Generate chart for certain keywords if no explicit instructions
+      if (!result.chart_instructions && (
+          message.toLowerCase().includes('worst') || 
+          message.toLowerCase().includes('statistics') || 
+          message.toLowerCase().includes('ranking') ||
+          message.toLowerCase().includes('compare') ||
+          message.toLowerCase().includes('chart') ||
+          message.toLowerCase().includes('areas'))) {
+        generateChart();
+      }
+
+    } catch (error) {
+      console.error('❌ Query error:', error);
+      const errorMessage = {
+        type: 'bot',
+        message: '⚠️ Analysis Error: I encountered an issue processing your water accessibility query.\n\nThis could be due to:\n• Temporary server overload\n• Database connectivity issues\n• Complex query processing\n\nPlease try rephrasing your question or try again in a moment.',
+        timestamp: new Date().toISOString()
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+    }
+
+    setIsLoading(false);
+  };
+
+  const handleMapInstructions = (instructions) => {
+    console.log('🗺️ Processing Advanced AI Map Instructions:', instructions);
+    
+    // Store instructions for InteractiveMap component
+    setMapInstructions(instructions);
+    
+    // Handle immediate UI changes that need to happen at App level
+    if (instructions.switch_to_view) {
+      console.log('🎯 AI switching to view:', instructions.switch_to_view);
+      // This will be handled by the MapLayerTabs component
+    }
+    
+    if (instructions.proactive_suggestions) {
+      console.log('💡 AI suggestions:', instructions.proactive_suggestions);
+      setAiSuggestions(instructions.proactive_suggestions);
+    }
+    
+    if (instructions.spatial_context) {
+      console.log('🌍 Spatial context:', instructions.spatial_context);
+      setSpatialContext(instructions.spatial_context);
+    }
+  };
+
+  const handleChartInstructions = (instructions) => {
+    console.log('🧠 AI Chart Intelligence Processing:', instructions);
+    
+    // Enhanced AI-driven chart generation
+    if (instructions.comparison_chart) {
+      generateAIChart('targeted_comparison', instructions.comparison_chart);
+    } else if (instructions.accessibility_ranking) {
+      generateAIChart('smart_ranking', instructions.accessibility_ranking);
+    } else if (instructions.statistical_summary) {
+      generateAIChart('focused_statistics', instructions.statistical_summary);
+    } else if (instructions.population_impact) {
+      generateAIChart('population_analysis', instructions.population_impact);
+    } else if (instructions.category_distribution) {
+      generateAIChart('category_breakdown', instructions.category_distribution);
+    } else {
+      // Fallback to basic chart
+      generateChart('ranking');
+    }
+  };
+
+  // 🧠 ADVANCED AI CHART INTELLIGENCE SYSTEM
+  const generateAIChart = (chartType, config = {}) => {
+    console.log('🎯 AI Generating Chart:', chartType, 'with config:', config);
+    
+    if (!mapData || !mapData.features) return;
+    
+    const features = mapData.features;
+    const uniqueAreas = [];
+    const seenNames = new Set();
+    
+    // Get unique sublocations
+    features.forEach(feature => {
+      if (!seenNames.has(feature.properties.name)) {
+        uniqueAreas.push({
+          name: feature.properties.name,
+          accessibility: feature.properties.accessibility,
+          population: feature.properties.population,
+          category: feature.properties.category
+        });
+        seenNames.add(feature.properties.name);
+      }
+    });
+    
+    switch (chartType) {
+      case 'targeted_comparison':
+        generateTargetedComparison(uniqueAreas, config);
+        break;
+      case 'smart_ranking':
+        generateSmartRanking(uniqueAreas, config);
+        break;
+      case 'focused_statistics':
+        generateFocusedStatistics(uniqueAreas, config);
+        break;
+      case 'population_analysis':
+        generatePopulationAnalysis(uniqueAreas, config);
+        break;
+      case 'category_breakdown':
+        generateCategoryBreakdown(uniqueAreas, config);
+        break;
+      default:
+        generateChart('ranking');
+    }
+  };
+
+  // AI-powered targeted comparison (shows ONLY the areas being compared)
+  const generateTargetedComparison = (allAreas, config) => {
+    console.log('🎯 AI Targeted Comparison:', config);
+    
+    const { areas, metrics, highlight_differences } = config;
+    
+    // Filter to show ONLY the compared areas
+    const targetAreas = allAreas.filter(area => 
+      areas.some(targetName => 
+        area.name.toLowerCase().includes(targetName.toLowerCase()) ||
+        targetName.toLowerCase().includes(area.name.toLowerCase())
+      )
+    );
+    
+    if (targetAreas.length === 0) return;
+    
+    // Calculate average for comparison context
+    const avgAccessibility = allAreas.reduce((sum, area) => sum + area.accessibility, 0) / allAreas.length;
+    
+    const comparisonData = targetAreas.map(area => ({
+      name: area.name,
+      accessibility: area.accessibility,
+      population: area.population,
+      category: area.category,
+      vs_average: area.accessibility - avgAccessibility,
+      is_better: area.accessibility > avgAccessibility
+    }));
+    
+    setChartData({
+      data: comparisonData,
+      title: `🎯 AI Comparison: ${areas.join(' vs ')}`,
+      type: 'targeted_comparison',
+      metadata: {
+        average: avgAccessibility,
+        total_areas: allAreas.length,
+        highlight_differences
+      }
+    });
+  };
+
+  // AI-powered smart ranking (shows only relevant areas based on query)
+  const generateSmartRanking = (allAreas, config) => {
+    console.log('📊 AI Smart Ranking:', config);
+    
+    const { order = 'asc', limit, highlight, show_only } = config;
+    
+    let dataToShow = allAreas;
+    
+    // If show_only is specified, filter to only those areas
+    if (show_only && show_only.length > 0) {
+      dataToShow = allAreas.filter(area => 
+        show_only.some(targetName => 
+          area.name.toLowerCase().includes(targetName.toLowerCase()) ||
+          targetName.toLowerCase().includes(area.name.toLowerCase())
+        )
+      );
+    }
+    
+    // Sort data
+    const sortedData = dataToShow.sort((a, b) => 
+      order === 'asc' ? a.accessibility - b.accessibility : b.accessibility - a.accessibility
+    );
+    
+    // Apply limit if specified
+    const finalData = limit ? sortedData.slice(0, limit) : sortedData;
+    
+    // Mark highlighted areas
+    finalData.forEach(area => {
+      area.isHighlighted = highlight && highlight.some(h => 
+        area.name.toLowerCase().includes(h.toLowerCase())
+      );
+    });
+    
+    const title = show_only && show_only.length > 0 
+      ? `🎯 AI Focused Ranking: ${show_only.join(', ')}`
+      : `📊 AI Smart Ranking (${order === 'asc' ? 'Worst to Best' : 'Best to Worst'})`;
+    
+    setChartData({
+      data: finalData,
+      title,
+      type: 'smart_ranking',
+      metadata: {
+        order,
+        total_filtered: dataToShow.length,
+        total_areas: allAreas.length,
+        highlight
+      }
+    });
+  };
+
+  // AI-powered focused statistics (shows detailed stats for specific areas)
+  const generateFocusedStatistics = (allAreas, config) => {
+    console.log('📈 AI Focused Statistics:', config);
+    
+    const { focus_areas, include, compare_to_average } = config;
+    
+    let targetAreas = allAreas;
+    
+    // If focus areas are specified, show only those
+    if (focus_areas && focus_areas.length > 0) {
+      targetAreas = allAreas.filter(area => 
+        focus_areas.some(targetName => 
+          area.name.toLowerCase().includes(targetName.toLowerCase()) ||
+          targetName.toLowerCase().includes(area.name.toLowerCase())
+        )
+      );
+    }
+    
+    // Calculate statistics
+    const stats = {
+      count: targetAreas.length,
+      total_population: targetAreas.reduce((sum, area) => sum + area.population, 0),
+      avg_accessibility: targetAreas.reduce((sum, area) => sum + area.accessibility, 0) / targetAreas.length,
+      min_accessibility: Math.min(...targetAreas.map(area => area.accessibility)),
+      max_accessibility: Math.max(...targetAreas.map(area => area.accessibility)),
+      median_accessibility: calculateMedian(targetAreas.map(area => area.accessibility))
+    };
+    
+    // Compare to overall average if requested
+    if (compare_to_average) {
+      const overallAvg = allAreas.reduce((sum, area) => sum + area.accessibility, 0) / allAreas.length;
+      stats.vs_overall_average = stats.avg_accessibility - overallAvg;
+    }
+    
+    // Create visual data for statistics
+    const statsData = targetAreas.map(area => ({
+      name: area.name,
+      accessibility: area.accessibility,
+      population: area.population,
+      category: area.category,
+      deviation_from_group_avg: area.accessibility - stats.avg_accessibility
+    }));
+    
+    const title = focus_areas && focus_areas.length > 0 
+      ? `📈 AI Statistics: ${focus_areas.join(', ')}`
+      : '📈 AI Statistical Analysis';
+    
+    setChartData({
+      data: statsData,
+      title,
+      type: 'focused_statistics',
+      metadata: {
+        statistics: stats,
+        focus_areas: focus_areas || ['All Areas']
+      }
+    });
+  };
+
+  // AI-powered population analysis
+  const generatePopulationAnalysis = (allAreas, config) => {
+    console.log('👥 AI Population Analysis:', config);
+    
+    const { focus_areas, breakdown_by_category, intervention_priority } = config;
+    
+    let targetAreas = allAreas;
+    
+    if (focus_areas && focus_areas.length > 0) {
+      targetAreas = allAreas.filter(area => 
+        focus_areas.some(targetName => 
+          area.name.toLowerCase().includes(targetName.toLowerCase())
+        )
+      );
+    }
+    
+    // Group by accessibility category
+    const categoryData = {};
+    targetAreas.forEach(area => {
+      if (!categoryData[area.category]) {
+        categoryData[area.category] = { count: 0, population: 0, areas: [] };
+      }
+      categoryData[area.category].count++;
+      categoryData[area.category].population += area.population;
+      categoryData[area.category].areas.push(area.name);
+    });
+    
+    const totalPopulation = targetAreas.reduce((sum, area) => sum + area.population, 0);
+    
+    const analysisData = Object.entries(categoryData).map(([category, data]) => ({
+      name: category,
+      count: data.count,
+      population: data.population,
+      percentage: ((data.population / totalPopulation) * 100).toFixed(1),
+      areas: data.areas,
+      priority: category === 'Very Weak' ? 'Critical' : category === 'Weak' ? 'High' : 'Medium'
+    }));
+    
+    const title = focus_areas && focus_areas.length > 0 
+      ? `👥 AI Population Impact: ${focus_areas.join(', ')}`
+      : '👥 AI Population Impact Analysis';
+    
+    setChartData({
+      data: analysisData,
+      title,
+      type: 'population_analysis',
+      metadata: {
+        total_population: totalPopulation,
+        total_areas: targetAreas.length,
+        intervention_priority
+      }
+    });
+  };
+
+  // AI-powered category breakdown
+  const generateCategoryBreakdown = (allAreas, config) => {
+    console.log('🏷️ AI Category Breakdown:', config);
+    
+    const { type = 'pie', show_population = true } = config;
+    
+    const categoryData = {};
+    let totalPop = 0;
+    
+    allAreas.forEach(area => {
+      if (!categoryData[area.category]) {
+        categoryData[area.category] = { count: 0, population: 0 };
+      }
+      categoryData[area.category].count++;
+      categoryData[area.category].population += area.population;
+      totalPop += area.population;
+    });
+    
+    const chartData = Object.entries(categoryData).map(([category, data]) => ({
+      name: category,
+      count: data.count,
+      population: data.population,
+      percentage: ((data.population / totalPop) * 100).toFixed(1),
+      color: getColorByCategory(category)
+    }));
+    
+    setChartData({
+      data: chartData,
+      title: '🏷️ AI Category Distribution',
+      type: 'category_breakdown',
+      metadata: {
+        chart_type: type,
+        show_population,
+        total_population: totalPop
+      }
+    });
+  };
+
+  // Helper function to calculate median
+  const calculateMedian = (values) => {
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  };
+
+  // Legacy chart generation for backward compatibility
+  const generateChart = (type = 'ranking', config = {}) => {
+    if (!mapData || !mapData.features) return;
+    
+    const features = mapData.features;
+    const uniqueAreas = [];
+    const seenNames = new Set();
+    
+    // Get unique sublocations
+    features.forEach(feature => {
+      if (!seenNames.has(feature.properties.name)) {
+        uniqueAreas.push({
+          name: feature.properties.name,
+          accessibility: feature.properties.accessibility,
+          population: feature.properties.population,
+          category: feature.properties.category
+        });
+        seenNames.add(feature.properties.name);
+      }
+    });
+    
+    if (type === 'ranking') {
+      const sortedData = uniqueAreas.sort((a, b) => a.accessibility - b.accessibility);
+      setChartData({
+        data: sortedData,
+        title: 'Water Accessibility Rankings (All Areas)',
+        type: 'ranking'
+      });
+    }
+    // ... other legacy chart types
+  };
+
+  // 🧠 AI TYPING INTELLIGENCE - Smart location suggestions
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const SUBLOCATIONS = [
+    'GACABARI', 'GACHOKA', 'GACHURURIRI', 'GATEGI', 'GICHICHE', 
+    'KARABA', 'KIAMBERE', 'KIAMURINGA', 'KIRIMA', 'KITHUNTHIRI', 
+    'MAKIMA', 'MAVURIA', 'MBITA', 'MBONDONI', 'MWEA', 
+    'NYANGWA', 'RIACHINA', 'RIAKANAU', 'WACHORO'
+  ];
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setInputValue(value);
+    
+    // Smart location suggestion as user types
+    if (value.length > 2) {
+      const suggestions = SUBLOCATIONS.filter(loc => 
+        loc.toLowerCase().includes(value.toLowerCase()) ||
+        value.toLowerCase().includes(loc.toLowerCase().substring(0, 3))
+      ).slice(0, 3);
+      
+      if (suggestions.length > 0) {
+        setLocationSuggestions(suggestions);
+      } else {
+        setLocationSuggestions([]);
+      }
+    } else {
+      setLocationSuggestions([]);
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    handleSendMessage(inputValue);
+    setLocationSuggestions([]);
+  };
+
+
+  const formatMessage = (message) => {
+    return message.split('\n').map((line, index) => (
+      <React.Fragment key={index}>
+        {line}
+        {index < message.split('\n').length - 1 && <br />}
+      </React.Fragment>
+    ));
+  };
+
+  const getColorByCategory = (category) => {
+    switch (category) {
+      case 'Very Weak': return '#ff0000';  // Red
+      case 'Weak': return '#ff8800';       // Orange  
+      case 'Good': return '#88ccff';       // Light blue
+      case 'Very Good': return '#0066cc';  // Dark blue
+      default: return '#cccccc';           // Gray
+    }
+  };
+
+  return (
+    <div className="App">
+      <header className="app-header">
+        <h1>🌊 HydroGPT - Water Accessibility Analysis</h1>
+        <p>Mbeere South Subcounty, Kenya | Advanced SCM-G2SFCA Methodology | Professional Edition v1.0</p>
+      </header>
+
+      <div className="main-container">
+        {/* MAP SECTION - Left Panel */}
+        <div className="left-panel">
+          <div className="map-container">
+            <h2>📍 Interactive Map</h2>
+            <MapLayerTabs 
+              mapData={mapData} 
+              waterPointsData={waterPointsData}
+              mapInstructions={mapInstructions}
+            />
+          </div>
+        </div>
+
+        {/* CHAT AND CHARTS SECTION - Right Panel */}
+        <div className="right-panel">
+          <div className="chat-container">
+            <div className="chat-header">
+              <h3>💬 HydroGPT</h3>
+            </div>
+
+            <div className="messages-container" ref={messagesContainerRef}>
+              {chatMessages.map((message, index) => (
+                <div key={index} className={`message ${message.type}`} style={{
+                  border: message.confidence === 'low' ? '1px solid #ffcc00' : 'none',
+                  background: message.confidence === 'high' ? '#f0f8ff' : 
+                             message.confidence === 'low' ? '#fff8e1' : undefined
+                }}>
+                  <div className="message-content">
+                    {message.type === 'bot' && (
+                      <div style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
+                        <strong>🤖 HydroGPT:</strong>
+                        {message.confidence === 'high' && <span style={{fontSize: '0.8em', color: '#007700'}}>✓ High Confidence</span>}
+                        {message.confidence === 'low' && <span style={{fontSize: '0.8em', color: '#ff8800'}}>⚠ Low Confidence</span>}
+                      </div>
+                    )}
+                    {message.type === 'user' && <strong>👤 You:</strong>}
+                    <br />
+                    {formatMessage(message.message)}
+                    
+                    {/* Display spatial context in bot messages */}
+                    {message.type === 'bot' && message.spatial_context && (
+                      <div style={{
+                        marginTop: '10px',
+                        padding: '8px',
+                        background: 'rgba(76, 175, 80, 0.1)',
+                        borderRadius: '5px',
+                        fontSize: '0.85em',
+                        borderLeft: '3px solid #4caf50'
+                      }}>
+                        <strong>🌍 Context:</strong> {message.spatial_context}
+                      </div>
+                    )}
+                  </div>
+                  <div className="message-time">
+                    {new Date(message.timestamp).toLocaleTimeString()}
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+              
+              {isLoading && (
+                <div className="message bot">
+                  <div className="message-content">
+                    <strong>🤖 HydroGPT:</strong><br />
+                    <div className="typing-indicator">
+                      <span></span><span></span><span></span>
+                    </div>
+                    Analyzing your query...
+                  </div>
+                </div>
+              )}
+            </div>
+
+
+            <form onSubmit={handleSubmit} className="input-form">
+              <div className="input-container" style={{position: 'relative'}}>
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  placeholder="Ask about water accessibility... (Press Enter to send)"
+                  disabled={isLoading}
+                  className="message-input"
+                  maxLength={500}
+                  autoComplete="off"
+                  aria-label="Enter your water accessibility question"
+                />
+                <button 
+                  type="submit" 
+                  disabled={isLoading || !inputValue.trim()}
+                  className="send-button"
+                  aria-label={isLoading ? "Processing query..." : "Send message"}
+                  title={isLoading ? "Processing query..." : "Send message (Enter)"}
+                >
+                  {isLoading ? '⏳' : '📤'}
+                </button>
+                
+                {/* 🧠 SMART LOCATION SUGGESTIONS DROPDOWN */}
+                {locationSuggestions.length > 0 && (
+                  <div className="location-suggestions" style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    background: 'white',
+                    border: '1px solid #ddd',
+                    borderRadius: '0 0 8px 8px',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                    zIndex: 1000,
+                    maxHeight: '150px',
+                    overflowY: 'auto'
+                  }}>
+                    <div style={{
+                      padding: '8px 12px',
+                      fontSize: '0.8em',
+                      color: '#666',
+                      borderBottom: '1px solid #eee',
+                      background: '#f8f9fa'
+                    }}>
+                      🎯 Did you mean these locations?
+                    </div>
+                    {locationSuggestions.map((location, index) => (
+                      <div
+                        key={index}
+                        onClick={() => {
+                          const newValue = inputValue.replace(/\w+$/, location);
+                          setInputValue(newValue);
+                          setLocationSuggestions([]);
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          fontSize: '0.9em',
+                          borderBottom: index < locationSuggestions.length - 1 ? '1px solid #eee' : 'none',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseOver={(e) => e.target.style.backgroundColor = '#f0f8ff'}
+                        onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+                      >
+                        📍 {location}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {inputValue.length > 400 && (
+                <div className="character-counter">
+                  {inputValue.length}/500 characters
+                </div>
+              )}
+            </form>
+
+            {/* 🧠 AI PROACTIVE SUGGESTIONS PANEL */}
+            {aiSuggestions && aiSuggestions.length > 0 && (
+              <div className="ai-suggestions-panel" style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                padding: '15px',
+                borderRadius: '10px',
+                margin: '15px 0',
+                boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+              }}>
+                <h4 style={{margin: '0 0 10px 0', fontSize: '0.95em'}}>
+                  🤖 AI Suggestions - What would you like to explore next?
+                </h4>
+                <div className="suggestion-buttons" style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  {aiSuggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSendMessage(suggestion)}
+                      disabled={isLoading}
+                      className="suggestion-button"
+                      style={{
+                        background: 'rgba(255,255,255,0.2)',
+                        color: 'white',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        padding: '8px 12px',
+                        borderRadius: '20px',
+                        cursor: 'pointer',
+                        fontSize: '0.85em',
+                        transition: 'all 0.3s ease',
+                        textAlign: 'left'
+                      }}
+                      onMouseOver={(e) => {
+                        e.target.style.background = 'rgba(255,255,255,0.3)';
+                        e.target.style.transform = 'translateX(5px)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.background = 'rgba(255,255,255,0.2)';
+                        e.target.style.transform = 'translateX(0px)';
+                      }}
+                    >
+                      💡 {suggestion}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setAiSuggestions([])}
+                  style={{
+                    background: 'transparent',
+                    color: 'rgba(255,255,255,0.7)',
+                    border: 'none',
+                    fontSize: '0.8em',
+                    cursor: 'pointer',
+                    marginTop: '10px',
+                    float: 'right'
+                  }}
+                >
+                  ✕ Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* 🌍 SPATIAL CONTEXT PANEL */}
+            {spatialContext && (
+              <div className="spatial-context-panel" style={{
+                background: 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)',
+                color: 'white',
+                padding: '12px',
+                borderRadius: '8px',
+                margin: '10px 0',
+                fontSize: '0.9em',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+              }}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                  <div>
+                    <strong>🌍 Geographic Context:</strong>
+                    <div style={{marginTop: '5px', opacity: 0.9}}>
+                      {spatialContext}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSpatialContext(null)}
+                    style={{
+                      background: 'transparent',
+                      color: 'rgba(255,255,255,0.8)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '0.8em'
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* CHART SECTION */}
+          <div className="chart-container">
+            <h3>📊 Data Visualization</h3>
+            <div className="chart-content">
+              {chartData ? (
+                <div className="chart-display">
+                  <h4>{chartData.title}</h4>
+                  {/* 🧠 AI METADATA DISPLAY */}
+                  {chartData.metadata && (
+                    <div className="ai-chart-metadata" style={{
+                      background: '#f0f8ff', 
+                      padding: '10px', 
+                      margin: '10px 0', 
+                      borderRadius: '5px',
+                      fontSize: '0.9em',
+                      borderLeft: '4px solid #0066cc'
+                    }}>
+                      🤖 <strong>AI Analysis:</strong> 
+                      {chartData.metadata.total_areas && (
+                        <span> Showing {chartData.data.length} of {chartData.metadata.total_areas} total areas</span>
+                      )}
+                      {chartData.metadata.focus_areas && (
+                        <span> | Focus: {chartData.metadata.focus_areas.join(', ')}</span>
+                      )}
+                      {chartData.metadata.average && (
+                        <span> | Regional Average: {chartData.metadata.average.toFixed(3)}</span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="chart-bars">
+                    {chartData.type === 'targeted_comparison' ? (
+                      // 🎯 AI TARGETED COMPARISON - Show only compared areas
+                      chartData.data.map((item, index) => (
+                        <div key={index} className="chart-bar-item" style={{
+                          border: '2px solid #0066cc',
+                          borderRadius: '8px',
+                          margin: '8px 0',
+                          padding: '10px',
+                          background: item.is_better ? '#e8f5e8' : '#ffeaea'
+                        }}>
+                          <div className="bar-info">
+                            <span className="bar-name" style={{fontWeight: 'bold'}>
+                              🎯 {item.name}
+                            </span>
+                            <span className="bar-value" style={{
+                              color: item.is_better ? '#007700' : '#dd0000',
+                              fontWeight: 'bold'
+                            }}>
+                              {item.accessibility.toFixed(3)}
+                            </span>
+                          </div>
+                          <div className="bar-container">
+                            <div 
+                              className="bar-fill"
+                              style={{
+                                width: `${(item.accessibility / 2.5) * 100}%`,
+                                backgroundColor: getColorByCategory(item.category),
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                              }}
+                            ></div>
+                          </div>
+                          <div className="bar-details" style={{marginTop: '8px'}}>
+                            <div>👥 Population: {item.population.toLocaleString()}</div>
+                            <div>📊 Category: <strong style={{color: getColorByCategory(item.category)}}>{item.category}</strong></div>
+                            <div>📈 vs Regional Avg: <span style={{color: item.vs_average > 0 ? '#007700' : '#dd0000'}}>
+                              {item.vs_average > 0 ? '+' : ''}{item.vs_average.toFixed(3)}
+                            </span></div>
+                          </div>
+                        </div>
+                      ))
+                    ) : chartData.type === 'smart_ranking' ? (
+                      // 📊 AI SMART RANKING - Enhanced ranking with highlighting
+                      chartData.data.map((item, index) => (
+                        <div key={index} className={`chart-bar-item ${item.isHighlighted ? 'highlighted' : ''}`} style={{
+                          border: item.isHighlighted ? '3px solid #ffaa00' : '1px solid #ddd',
+                          borderRadius: '6px',
+                          margin: '5px 0',
+                          padding: '8px',
+                          background: item.isHighlighted ? '#fff8e1' : 'white'
+                        }}>
+                          <div className="bar-info">
+                            <span className="bar-name" style={{
+                              fontWeight: item.isHighlighted ? 'bold' : 'normal'
+                            }}>
+                              {item.isHighlighted ? '⭐ ' : ''}{item.name}
+                            </span>
+                            <span className="bar-value">{item.accessibility.toFixed(3)}</span>
+                          </div>
+                          <div className="bar-container">
+                            <div 
+                              className="bar-fill"
+                              style={{
+                                width: `${(item.accessibility / 2.5) * 100}%`,
+                                backgroundColor: item.isHighlighted ? '#ffaa00' : getColorByCategory(item.category)
+                              }}
+                            ></div>
+                          </div>
+                          <div className="bar-details">
+                            Population: {item.population.toLocaleString()} | {item.category}
+                          </div>
+                        </div>
+                      ))
+                    ) : chartData.type === 'focused_statistics' ? (
+                      // 📈 AI FOCUSED STATISTICS - Detailed stats for specific areas
+                      <div>
+                        {chartData.metadata.statistics && (
+                          <div className="statistics-summary" style={{
+                            background: '#f8f9fa',
+                            padding: '15px',
+                            borderRadius: '8px',
+                            margin: '10px 0',
+                            border: '1px solid #dee2e6'
+                          }}>
+                            <h5 style={{margin: '0 0 10px 0', color: '#495057'}}>📊 Statistical Summary</h5>
+                            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px'}}>
+                              <div><strong>Count:</strong> {chartData.metadata.statistics.count}</div>
+                              <div><strong>Total Pop:</strong> {chartData.metadata.statistics.total_population.toLocaleString()}</div>
+                              <div><strong>Average:</strong> {chartData.metadata.statistics.avg_accessibility.toFixed(3)}</div>
+                              <div><strong>Min:</strong> {chartData.metadata.statistics.min_accessibility.toFixed(3)}</div>
+                              <div><strong>Max:</strong> {chartData.metadata.statistics.max_accessibility.toFixed(3)}</div>
+                              <div><strong>Median:</strong> {chartData.metadata.statistics.median_accessibility.toFixed(3)}</div>
+                              {chartData.metadata.statistics.vs_overall_average && (
+                                <div><strong>vs Overall:</strong> 
+                                  <span style={{color: chartData.metadata.statistics.vs_overall_average > 0 ? '#007700' : '#dd0000'}}>
+                                    {chartData.metadata.statistics.vs_overall_average > 0 ? '+' : ''}{chartData.metadata.statistics.vs_overall_average.toFixed(3)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {chartData.data.map((item, index) => (
+                          <div key={index} className="chart-bar-item">
+                            <div className="bar-info">
+                              <span className="bar-name">📈 {item.name}</span>
+                              <span className="bar-value">{item.accessibility.toFixed(3)}</span>
+                            </div>
+                            <div className="bar-container">
+                              <div 
+                                className="bar-fill"
+                                style={{
+                                  width: `${(item.accessibility / 2.5) * 100}%`,
+                                  backgroundColor: getColorByCategory(item.category)
+                                }}
+                              ></div>
+                            </div>
+                            <div className="bar-details">
+                              Population: {item.population.toLocaleString()} | Deviation: {item.deviation_from_group_avg.toFixed(3)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : chartData.type === 'population_analysis' ? (
+                      // 👥 AI POPULATION ANALYSIS
+                      chartData.data.map((item, index) => (
+                        <div key={index} className="chart-bar-item" style={{
+                          border: `2px solid ${getColorByCategory(item.name)}`,
+                          borderRadius: '8px',
+                          margin: '8px 0',
+                          padding: '10px'
+                        }}>
+                          <div className="bar-info">
+                            <span className="bar-name">👥 {item.name}</span>
+                            <span className="bar-value">{item.percentage}%</span>
+                          </div>
+                          <div className="bar-container">
+                            <div 
+                              className="bar-fill"
+                              style={{
+                                width: `${item.percentage}%`,
+                                backgroundColor: getColorByCategory(item.name)
+                              }}
+                            ></div>
+                          </div>
+                          <div className="bar-details">
+                            <div>Population: {item.population.toLocaleString()} | Areas: {item.count}</div>
+                            <div>Priority: <strong style={{
+                              color: item.priority === 'Critical' ? '#dd0000' : item.priority === 'High' ? '#ff8800' : '#007700'
+                            }}>{item.priority}</strong></div>
+                            <div style={{fontSize: '0.85em', color: '#666'}}>
+                              Areas: {item.areas.join(', ')}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : chartData.type === 'category_breakdown' ? (
+                      // 🏷️ AI CATEGORY BREAKDOWN
+                      chartData.data.map((item, index) => (
+                        <div key={index} className="chart-bar-item">
+                          <div className="bar-info">
+                            <span className="bar-name">🏷️ {item.name}</span>
+                            <span className="bar-value">{item.percentage}%</span>
+                          </div>
+                          <div className="bar-container">
+                            <div 
+                              className="bar-fill"
+                              style={{
+                                width: `${item.percentage}%`,
+                                backgroundColor: item.color
+                              }}
+                            ></div>
+                          </div>
+                          <div className="bar-details">
+                            Population: {item.population.toLocaleString()} | {item.count} areas
+                          </div>
+                        </div>
+                      ))
+                    ) : chartData.type === 'category' ? (
+                      // Legacy category chart
+                      chartData.data.map((item, index) => (
+                        <div key={index} className="chart-bar-item">
+                          <div className="bar-info">
+                            <span className="bar-name">{item.name}</span>
+                            <span className="bar-value">{item.percentage}%</span>
+                          </div>
+                          <div className="bar-container">
+                            <div 
+                              className="bar-fill"
+                              style={{
+                                width: `${item.percentage}%`,
+                                backgroundColor: getColorByCategory(item.name)
+                              }}
+                            ></div>
+                          </div>
+                          <div className="bar-details">
+                            Population: {item.population.toLocaleString()} | {item.count} areas
+                          </div>
+                        </div>
+                      ))
+                    ) : chartData.type === 'comparison' ? (
+                      // Legacy comparison chart
+                      chartData.data.map((item, index) => (
+                        <div key={index} className="chart-bar-item">
+                          <div className="bar-info">
+                            <span className="bar-name">{item.name}</span>
+                            <span className="bar-value">{item.difference > 0 ? '+' : ''}{item.difference.toFixed(3)}</span>
+                          </div>
+                          <div className="bar-container">
+                            <div 
+                              className="bar-fill"
+                              style={{
+                                width: `${Math.abs(item.difference) * 50 + 10}%`,
+                                backgroundColor: item.difference < 0 ? '#ff4444' : '#44aa44'
+                              }}
+                            ></div>
+                          </div>
+                          <div className="bar-details">
+                            Actual: {item.accessibility.toFixed(3)} | Population: {item.population.toLocaleString()}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      // Default ranking chart
+                      chartData.data.map((item, index) => (
+                        <div key={index} className="chart-bar-item">
+                          <div className="bar-info">
+                            <span className="bar-name">{item.name}</span>
+                            <span className="bar-value">{item.accessibility.toFixed(3)}</span>
+                          </div>
+                          <div className="bar-container">
+                            <div 
+                              className="bar-fill"
+                              style={{
+                                width: `${(item.accessibility / 2.5) * 100}%`,
+                                backgroundColor: getColorByCategory(item.category)
+                              }}
+                            ></div>
+                          </div>
+                          <div className="bar-details">
+                            Population: {item.population.toLocaleString()} | {item.category}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="chart-placeholder">
+                  📊 Charts appear when you ask for statistics
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <footer className="app-footer">
+        <div className="footer-content">
+          <span>© 2024 HydroGPT | Water Resource Intelligence Platform</span>
+          <span>Powered by Advanced GIS Analytics & AI</span>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// ENHANCED MAP LAYER TABS COMPONENT WITH AI CONTROL
+const MapLayerTabs = ({ mapData, waterPointsData, mapInstructions }) => {
+  const [activeTab, setActiveTab] = React.useState('sublocations');
+  const [showSublocations, setShowSublocations] = React.useState(true);
+  const [showWaterPoints, setShowWaterPoints] = React.useState(false);
+  const [shouldFitBounds, setShouldFitBounds] = React.useState(false);
+
+  // 🤖 AI-CONTROLLED VIEW SWITCHING
+  React.useEffect(() => {
+    if (mapInstructions && mapInstructions.switch_to_view) {
+      const targetView = mapInstructions.switch_to_view;
+      console.log('🎯 AI is switching map view to:', targetView);
+      
+      // Smooth transition with visual feedback
+      setTimeout(() => {
+        handleTabChange(targetView);
+      }, 300); // Small delay for smooth UX
+    }
+  }, [mapInstructions]);
+
+  const handleTabChange = (tab) => {
+    console.log('Tab change requested:', tab);
+    setActiveTab(tab);
+    
+    if (tab === 'sublocations') {
+      setShowSublocations(true);
+      setShowWaterPoints(false);
+    } else if (tab === 'waterpoints') {
+      setShowSublocations(true);  // Show boundaries for water points view
+      setShowWaterPoints(true);
+    } else if (tab === 'both') {
+      setShowSublocations(true);
+      setShowWaterPoints(true);
+    }
+    
+    // Trigger bounds fitting when tab changes with longer delay
+    setTimeout(() => {
+      setShouldFitBounds(true);
+      setTimeout(() => setShouldFitBounds(false), 1000);
+    }, 200); // Allow state updates to complete first
+  };
+
+  const toggleSublocations = () => {
+    setShowSublocations(!showSublocations);
+  };
+
+  const toggleWaterPoints = () => {
+    setShowWaterPoints(!showWaterPoints);
+  };
+
+  return (
+    <div className="map-layer-container">
+      <div className="map-tabs">
+        <button 
+          className={`tab-button ${activeTab === 'sublocations' ? 'active' : ''}`}
+          onClick={() => handleTabChange('sublocations')}
+        >
+          Sublocations
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'waterpoints' ? 'active' : ''}`}
+          onClick={() => handleTabChange('waterpoints')}
+        >
+          Water Points
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'both' ? 'active' : ''}`}
+          onClick={() => handleTabChange('both')}
+        >
+          Both
+        </button>
+      </div>
+      
+      {activeTab === 'both' && (
+        <div className="layer-toggles">
+          <label className="toggle-label">
+            <input 
+              type="checkbox" 
+              checked={showSublocations} 
+              onChange={toggleSublocations}
+              className="toggle-checkbox"
+            />
+            <span className="toggle-text">🗺️ Sublocations</span>
+          </label>
+          <label className="toggle-label">
+            <input 
+              type="checkbox" 
+              checked={showWaterPoints} 
+              onChange={toggleWaterPoints}
+              className="toggle-checkbox"
+            />
+            <span className="toggle-text">💧 Water Points</span>
+          </label>
+        </div>
+      )}
+      
+      <InteractiveMap 
+        mapData={showSublocations ? mapData : null}
+        waterPointsData={showWaterPoints ? waterPointsData : null}
+        activeTab={activeTab}
+        mapInstructions={mapInstructions}
+        shouldFitBounds={shouldFitBounds}
+      />
+    </div>
+  );
+};
+
+// INTERACTIVE MAP COMPONENT
+const InteractiveMap = ({ mapData, waterPointsData, activeTab, mapInstructions, shouldFitBounds }) => {
+  const mapRef = React.useRef(null);
+  const mapInstanceRef = React.useRef(null);
+
+  React.useEffect(() => {
+    // Load Leaflet dynamically
+    const loadLeaflet = async () => {
+      if (typeof window !== 'undefined' && !window.L) {
+        // Add Leaflet CSS
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+
+        // Add Leaflet JS
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = initializeMap;
+        document.head.appendChild(script);
+      } else if (window.L) {
+        initializeMap();
+      }
+    };
+
+    const initializeMap = () => {
+      if (!mapInstanceRef.current && mapRef.current && window.L) {
+        console.log('Initializing map...');
+        // Initialize map centered on Mbeere South with adaptive zoom
+        const { minZoom } = getAdaptiveZoomSettings(activeTab);
+        mapInstanceRef.current = window.L.map(mapRef.current, {
+          zoomControl: true,
+          scrollWheelZoom: true,
+          doubleClickZoom: true,
+          boxZoom: true,
+          keyboard: true,
+          dragging: true,
+          touchZoom: true
+        }).setView([-0.7, 37.6], minZoom + 1);
+        
+        // Add OpenStreetMap tiles
+        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(mapInstanceRef.current);
+        
+        console.log('Map initialized, updating data...');
+        updateMapData();
+      } else {
+        console.log('Map init skipped:', { 
+          hasInstance: !!mapInstanceRef.current, 
+          hasRef: !!mapRef.current, 
+          hasLeaflet: !!window.L 
+        });
+      }
+    };
+
+    const updateMapData = () => {
+      if (!mapInstanceRef.current || !window.L) {
+        console.log('UpdateMapData skipped:', { hasInstance: !!mapInstanceRef.current, hasLeaflet: !!window.L });
+        return;
+      }
+      
+      console.log('Updating map data:', { 
+        mapData: !!mapData, 
+        waterPointsData: !!waterPointsData,
+        mapDataFeatures: mapData?.features?.length,
+        waterPointFeatures: waterPointsData?.features?.length
+      });
+
+      // Clear existing layers
+      mapInstanceRef.current.eachLayer((layer) => {
+        if (layer instanceof window.L.GeoJSON || layer instanceof window.L.CircleMarker) {
+          mapInstanceRef.current.removeLayer(layer);
+        }
+      });
+
+      // Add sublocation boundaries
+      if (mapData && mapData.features) {
+        const getColor = (category) => {
+          switch (category) {
+            case 'Very Weak': return '#ff0000';  // Red
+            case 'Weak': return '#ff8800';       // Orange  
+            case 'Good': return '#88ccff';       // Light blue
+            case 'Very Good': return '#0066cc';  // Dark blue
+            default: return '#cccccc';           // Gray
+          }
+        };
+
+        // Different styling based on active tab
+        const style = (feature) => {
+          if (activeTab === 'waterpoints') {
+            // Water points view: black outline, no fill
+            return {
+              fillColor: 'transparent',
+              weight: 2,
+              opacity: 1,
+              color: '#000000',
+              fillOpacity: 0
+            };
+          } else {
+            // Sublocations view: colored by accessibility
+            return {
+              fillColor: getColor(feature.properties.category),
+              weight: 2,
+              opacity: 1,
+              color: 'white',
+              fillOpacity: 0.7
+            };
+          }
+        };
+
+        const onEachFeature = (feature, layer) => {
+          const props = feature.properties;
+          layer.bindPopup(`
+            <div style="font-family: Arial, sans-serif;">
+              <h3 style="margin: 0 0 10px 0; color: #333;">${props.name}</h3>
+              <p><strong>Accessibility Score:</strong> ${props.accessibility.toFixed(3)}</p>
+              <p><strong>Category:</strong> <span style="color: ${getColor(props.category)};">${props.category}</span></p>
+              <p><strong>Population:</strong> ${props.population.toLocaleString()}</p>
+            </div>
+          `);
+
+          // Add adaptive labels for all map views
+          addAdaptiveLabel(layer, props.name, activeTab);
+
+          layer.on('mouseover', function() {
+            layer.setStyle({
+              weight: 4,
+              color: '#ffff00',
+              fillOpacity: 0.9
+            });
+          });
+
+          layer.on('mouseout', function() {
+            layer.setStyle(style(feature));
+          });
+        };
+
+        const geoJsonLayer = window.L.geoJSON(mapData, {
+          style: style,
+          onEachFeature: onEachFeature
+        }).addTo(mapInstanceRef.current);
+
+        // Fit map to bounds with adaptive settings for all views
+        const { minZoom, maxZoom, padding } = getAdaptiveZoomSettings(activeTab);
+        mapInstanceRef.current.fitBounds(geoJsonLayer.getBounds(), { 
+          padding: padding,
+          minZoom: minZoom,
+          maxZoom: maxZoom
+        });
+        
+        // Add zoom event listener for adaptive labels
+        mapInstanceRef.current.on('zoomend', () => {
+          try {
+            console.log('Zoom ended, updating labels at zoom level:', mapInstanceRef.current.getZoom());
+            
+            // Remove existing adaptive labels
+            if (mapInstanceRef.current._adaptiveLabels) {
+              mapInstanceRef.current._adaptiveLabels.forEach(labelInfo => {
+                if (labelInfo.marker) {
+                  mapInstanceRef.current.removeLayer(labelInfo.marker);
+                }
+              });
+              mapInstanceRef.current._adaptiveLabels = [];
+            }
+            
+            // Re-add labels with new zoom-appropriate sizing
+            mapInstanceRef.current.eachLayer((layer) => {
+              if (layer instanceof window.L.GeoJSON) {
+                layer.eachLayer((subLayer) => {
+                  if (subLayer.feature && subLayer.feature.properties && subLayer.feature.properties.name) {
+                    addAdaptiveLabel(subLayer, subLayer.feature.properties.name, activeTab);
+                  }
+                });
+              }
+            });
+            
+          } catch (e) {
+            console.warn('Zoom event error:', e);
+          }
+        });
+
+        // Add legend based on active tab
+        const existingLegend = document.querySelector('.leaflet-legend');
+        if (existingLegend) {
+          existingLegend.remove();
+        }
+        
+        const legend = window.L.control({ position: 'bottomright' });
+        legend.onAdd = function() {
+          const div = window.L.DomUtil.create('div', 'leaflet-legend');
+          div.style.background = 'white';
+          div.style.padding = '10px';
+          div.style.border = '2px solid #ccc';
+          div.style.borderRadius = '5px';
+          div.style.fontSize = '12px';
+          
+          let legendContent = '';
+          
+          if (mapData && activeTab === 'sublocations') {
+            legendContent += `
+              <h4 style="margin: 0 0 8px 0;">Water Accessibility</h4>
+              <div><span style="background:#ff0000;width:15px;height:15px;display:inline-block;margin-right:5px;"></span>Very Weak (0-1.0)</div>
+              <div><span style="background:#ff8800;width:15px;height:15px;display:inline-block;margin-right:5px;"></span>Weak (1.0-1.2)</div>
+              <div><span style="background:#88ccff;width:15px;height:15px;display:inline-block;margin-right:5px;"></span>Good (1.2-1.5)</div>
+              <div><span style="background:#0066cc;width:15px;height:15px;display:inline-block;margin-right:5px;"></span>Very Good (1.5+)</div>
+            `;
+          }
+          
+          if (mapData && activeTab === 'both') {
+            legendContent += `
+              <h4 style="margin: 0 0 8px 0;">Water Accessibility</h4>
+              <div><span style="background:#ff0000;width:15px;height:15px;display:inline-block;margin-right:5px;"></span>Very Weak (0-1.0)</div>
+              <div><span style="background:#ff8800;width:15px;height:15px;display:inline-block;margin-right:5px;"></span>Weak (1.0-1.2)</div>
+              <div><span style="background:#88ccff;width:15px;height:15px;display:inline-block;margin-right:5px;"></span>Good (1.2-1.5)</div>
+              <div><span style="background:#0066cc;width:15px;height:15px;display:inline-block;margin-right:5px;"></span>Very Good (1.5+)</div>
+            `;
+          }
+          
+          if (mapData && activeTab === 'waterpoints') {
+            legendContent += `
+              <h4 style="margin: 0 0 8px 0;">Sublocation Boundaries</h4>
+              <div><span style="border: 2px solid #000;width:15px;height:15px;display:inline-block;margin-right:5px;background:transparent;"></span>Administrative Boundaries</div>
+            `;
+          }
+          
+          if (waterPointsData && (activeTab === 'waterpoints' || activeTab === 'both')) {
+            if (legendContent) legendContent += '<br>';
+            legendContent += `
+              <h4 style="margin: 8px 0 8px 0;">Water Points</h4>
+              <div><span style="background:#0066cc;width:15px;height:15px;display:inline-block;margin-right:5px;border-radius:50%;"></span>High Capacity (3)</div>
+              <div><span style="background:#ffaa00;width:15px;height:15px;display:inline-block;margin-right:5px;border-radius:50%;"></span>Medium Capacity (2)</div>
+              <div><span style="background:#ff0000;width:15px;height:15px;display:inline-block;margin-right:5px;border-radius:50%;"></span>Low Capacity (1)</div>
+            `;
+          }
+          
+          div.innerHTML = legendContent;
+          return div;
+        };
+        legend.addTo(mapInstanceRef.current);
+      }
+
+
+      // Add water points
+      if (waterPointsData && waterPointsData.features) {
+        waterPointsData.features.forEach(feature => {
+          const coords = feature.geometry.coordinates;
+          const props = feature.properties;
+          
+          const getWaterPointColor = (capacity) => {
+            switch(capacity) {
+              case 3: return '#0066cc'; // High capacity - blue
+              case 2: return '#ffaa00'; // Medium capacity - orange
+              case 1: return '#ff0000'; // Low capacity - red
+              default: return '#666666'; // Unknown - gray
+            }
+          };
+
+          const marker = window.L.circleMarker([coords[1], coords[0]], {
+            radius: 4 + (props.capacity_score * 2),
+            fillColor: getWaterPointColor(props.capacity_score),
+            color: 'white',
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.8
+          }).addTo(mapInstanceRef.current);
+
+          marker.bindPopup(`
+            <div style="font-family: Arial, sans-serif;">
+              <h4 style="margin: 0 0 8px 0;">Water Point</h4>
+              <p><strong>Source:</strong> ${props.water_source || 'Unknown'}</p>
+              <p><strong>Capacity Score:</strong> ${props.capacity_score}/3</p>
+              <p><strong>Status:</strong> ${props.status || 'Unknown'}</p>
+            </div>
+          `);
+        });
+      }
+      
+      // Ensure map is properly fitted for all views, especially "Both" view
+      if (mapData && mapData.features) {
+        // Create a temporary layer to get bounds if needed
+        const tempLayer = window.L.geoJSON(mapData);
+        const { minZoom, maxZoom, padding } = getAdaptiveZoomSettings(activeTab);
+        mapInstanceRef.current.fitBounds(tempLayer.getBounds(), { 
+          padding: padding,
+          minZoom: minZoom,
+          maxZoom: maxZoom
+        });
+      }
+    };
+
+    loadLeaflet();
+    
+    // Add window resize listener for adaptive zoom
+    const handleResize = () => {
+      if (mapInstanceRef.current && mapData && mapData.features) {
+        setTimeout(() => {
+          const { minZoom, maxZoom, padding } = getAdaptiveZoomSettings(activeTab);
+          const tempLayer = window.L.geoJSON(mapData);
+          mapInstanceRef.current.fitBounds(tempLayer.getBounds(), { 
+            padding: padding,
+            minZoom: minZoom,
+            maxZoom: maxZoom
+          });
+        }, 250); // Delay to allow layout changes
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [mapData, waterPointsData, activeTab]);
+
+  // Helper function to calculate adaptive zoom settings based on device
+  const getAdaptiveZoomSettings = (tabType = 'default') => {
+    const screenWidth = window.innerWidth;
+    const isMobile = screenWidth < 768;
+    const isTablet = screenWidth >= 768 && screenWidth < 1024;
+    
+    // Extra zoom boost for "both" tab to fill the view better
+    const bothTabBoost = tabType === 'both' ? 2 : 0;
+    
+    // Calculate appropriate zoom levels and padding
+    let minZoom, maxZoom, padding;
+    
+    if (isMobile) {
+      minZoom = 11 + bothTabBoost;
+      maxZoom = 18;
+      padding = [5, 5]; // Minimal padding on mobile for maximum zoom
+    } else if (isTablet) {
+      minZoom = 12 + bothTabBoost;
+      maxZoom = 19;
+      padding = [10, 10]; // Reduced padding
+    } else {
+      minZoom = 13 + bothTabBoost;
+      maxZoom = 20;
+      padding = [8, 8]; // Minimal padding for desktop to maximize zoom
+    }
+    
+    return { minZoom, maxZoom, padding };
+  };
+
+  // Effect to handle bounds fitting when shouldFitBounds changes
+  React.useEffect(() => {
+    if (shouldFitBounds && mapInstanceRef.current && window.L) {
+      console.log('Fitting bounds for tab:', activeTab);
+      
+      // Add small delay to ensure map is fully rendered
+      setTimeout(() => {
+        try {
+          if (mapData && mapData.features && mapData.features.length > 0) {
+            const tempLayer = window.L.geoJSON(mapData);
+            const bounds = tempLayer.getBounds();
+            
+            if (bounds.isValid()) {
+              const { minZoom, maxZoom, padding } = getAdaptiveZoomSettings(activeTab);
+              
+              console.log('Applying bounds with adaptive settings:', {
+                bounds: bounds.toBBoxString(),
+                minZoom,
+                maxZoom,
+                padding,
+                device: window.innerWidth < 768 ? 'mobile' : window.innerWidth < 1024 ? 'tablet' : 'desktop'
+              });
+              
+              mapInstanceRef.current.fitBounds(bounds, { 
+                padding: padding,
+                minZoom: minZoom,
+                maxZoom: maxZoom
+              });
+            } else {
+              console.warn('Invalid bounds calculated');
+            }
+          } else {
+            console.warn('No map data available for bounds fitting');
+          }
+        } catch (error) {
+          console.error('Error fitting bounds:', error);
+        }
+      }, 100); // Small delay to ensure rendering
+    }
+  }, [shouldFitBounds, mapData, activeTab]);
+
+  // Helper function to calculate polygon centroid (true center point inside polygon)
+  const calculatePolygonCentroid = (layer) => {
+    try {
+      const geojson = layer.toGeoJSON();
+      const coordinates = geojson.geometry.coordinates[0]; // Get outer ring
+      
+      let area = 0;
+      let centroidLat = 0;
+      let centroidLng = 0;
+      
+      // Calculate centroid using shoelace formula
+      for (let i = 0; i < coordinates.length - 1; i++) {
+        const [lng1, lat1] = coordinates[i];
+        const [lng2, lat2] = coordinates[i + 1];
+        
+        const a = lng1 * lat2 - lng2 * lat1;
+        area += a;
+        centroidLng += (lng1 + lng2) * a;
+        centroidLat += (lat1 + lat2) * a;
+      }
+      
+      area *= 0.5;
+      centroidLng /= (6 * area);
+      centroidLat /= (6 * area);
+      
+      const centroid = window.L.latLng(centroidLat, centroidLng);
+      
+      // Verify the centroid is inside the polygon, fallback to bounds center if not
+      if (isPointInPolygon(centroid, coordinates)) {
+        return centroid;
+      } else {
+        // Fallback to bounds center if centroid is outside
+        return layer.getBounds().getCenter();
+      }
+    } catch (error) {
+      console.warn('Error calculating centroid, using bounds center:', error);
+      return layer.getBounds().getCenter();
+    }
+  };
+  
+  // Helper function to check if point is inside polygon
+  const isPointInPolygon = (point, coordinates) => {
+    try {
+      const x = point.lng;
+      const y = point.lat;
+      let inside = false;
+      
+      for (let i = 0, j = coordinates.length - 1; i < coordinates.length; j = i++) {
+        const [xi, yi] = coordinates[i];
+        const [xj, yj] = coordinates[j];
+        
+        if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+          inside = !inside;
+        }
+      }
+      
+      return inside;
+    } catch (error) {
+      console.warn('Error in point-in-polygon check:', error);
+      return true; // Assume inside on error
+    }
+  };
+
+  // Find best label position inside polygon
+  const findBestLabelPosition = (layer, labelText, fontSize) => {
+    try {
+      const geojson = layer.toGeoJSON();
+      const coordinates = geojson.geometry.coordinates[0];
+      const bounds = layer.getBounds();
+      
+      // Try multiple positions in order of preference
+      const candidatePositions = [
+        calculatePolygonCentroid(layer), // True centroid
+        bounds.getCenter(), // Bounds center
+        window.L.latLng(bounds.getCenter().lat + (bounds.getNorth() - bounds.getSouth()) * 0.1, bounds.getCenter().lng), // Slightly north
+        window.L.latLng(bounds.getCenter().lat - (bounds.getNorth() - bounds.getSouth()) * 0.1, bounds.getCenter().lng), // Slightly south
+        window.L.latLng(bounds.getCenter().lat, bounds.getCenter().lng + (bounds.getEast() - bounds.getWest()) * 0.1), // Slightly east
+        window.L.latLng(bounds.getCenter().lat, bounds.getCenter().lng - (bounds.getEast() - bounds.getWest()) * 0.1)  // Slightly west
+      ];
+      
+      // Test each position and return the first one that's inside the polygon
+      for (const position of candidatePositions) {
+        if (isPointInPolygon(position, coordinates)) {
+          return position;
+        }
+      }
+      
+      // If no position works, return bounds center as fallback
+      return bounds.getCenter();
+    } catch (error) {
+      console.warn('Error finding label position:', error);
+      return layer.getBounds().getCenter();
+    }
+  };
+
+  // Advanced adaptive labeling system
+  const addAdaptiveLabel = (layer, labelText, tabType = 'sublocations') => {
+    try {
+      const bounds = layer.getBounds();
+      
+      // Get current map zoom for dynamic scaling
+      const currentZoom = mapInstanceRef.current ? mapInstanceRef.current.getZoom() : 10;
+      
+      // Calculate polygon dimensions in screen space
+      const width = bounds.getEast() - bounds.getWest();
+      const height = bounds.getNorth() - bounds.getSouth();
+      const aspect = width / height;
+      const polygonSize = Math.sqrt(width * height);
+      
+      // Dynamic font sizing based on zoom and polygon size (increased for better readability)
+      let baseFontSize = Math.max(12, Math.min(24, currentZoom * 1.2 + polygonSize * 15000));
+      
+      // Find the best position for the label inside the polygon
+      const center = findBestLabelPosition(layer, labelText, baseFontSize);
+      
+      // Calculate proper text fitting within polygon bounds
+      const calculateTextFitSize = (text, polygonBounds, currentZoom) => {
+        try {
+          // Get polygon dimensions in map units
+          const polygonWidth = polygonBounds.getEast() - polygonBounds.getWest();
+          const polygonHeight = polygonBounds.getNorth() - polygonBounds.getSouth();
+          
+          // Convert to approximate pixel dimensions at current zoom
+          const earthCircumference = 40075016.686; // meters
+          const pixelsAtZoom = Math.pow(2, currentZoom);
+          const metersPerPixel = earthCircumference / pixelsAtZoom;
+          
+          const polygonWidthPixels = (polygonWidth * 111320) / metersPerPixel;
+          const polygonHeightPixels = (polygonHeight * 111320) / metersPerPixel;
+          
+          // Estimate text dimensions (conservative)
+          const charWidthRatio = 0.6; // Character width relative to font size
+          
+          // Calculate maximum font size that fits in polygon with 20% margin
+          const maxWidthBasedFont = (polygonWidthPixels * 0.8) / (text.length * charWidthRatio);
+          const maxHeightBasedFont = polygonHeightPixels * 0.6; // 60% of polygon height
+          
+          // Use the more restrictive constraint
+          const maxFitFont = Math.min(maxWidthBasedFont, maxHeightBasedFont);
+          
+          // Apply constraints and return (increased minimum size for readability)
+          return Math.max(10, Math.min(baseFontSize, maxFitFont));
+        } catch (error) {
+          console.warn('Error calculating text fit:', error);
+          return Math.max(10, baseFontSize * 0.8); // Conservative fallback with larger minimum
+        }
+      };
+      
+      // Apply text fitting
+      baseFontSize = calculateTextFitSize(labelText, bounds, currentZoom);
+      
+      // Determine rotation based on polygon shape (simplified)
+      let rotation = 0;
+      
+      // Analyze polygon shape for optimal text placement
+      if (aspect > 3) {
+        // Very wide polygon - horizontal text
+        rotation = 0;
+      } else if (aspect < 0.3) {
+        // Very tall polygon - vertical text
+        rotation = 90;
+      } else if (aspect < 0.7) {
+        // Tall polygon - diagonal
+        rotation = 45;
+      } else if (aspect > 2) {
+        // Wide polygon - slight angle
+        rotation = -10;
+      } else {
+        // Square-ish polygon - optimal angle
+        rotation = 15;
+      }
+      
+      // Create consistent styling for all map views (no backgrounds)
+      const labelStyle = `font-size: ${baseFontSize}px; font-weight: bold; color: #333; text-shadow: 2px 2px 4px rgba(255,255,255,0.95), -1px -1px 2px rgba(255,255,255,0.95), 1px -1px 2px rgba(255,255,255,0.95), -1px 1px 2px rgba(255,255,255,0.95); white-space: nowrap; text-align: center; pointer-events: auto; cursor: pointer; transform: rotate(${rotation}deg); transform-origin: center center; line-height: 1.1; letter-spacing: 0.2px; transition: all 0.3s ease; user-select: none;`;
+      
+      // Create interactive label (simplified)
+      const labelMarker = window.L.marker(center, {
+        icon: window.L.divIcon({
+          className: 'adaptive-label',
+          html: `<div style="${labelStyle}">${labelText}</div>`,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0]
+        })
+      });
+      
+      // Add interactivity
+      labelMarker.on('click', () => {
+        // Zoom to polygon when label is clicked
+        mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50] });
+      });
+      
+      labelMarker.on('mouseover', () => {
+        // Highlight on hover
+        layer.setStyle({
+          weight: 4,
+          color: '#ffff00',
+          fillOpacity: 0.9
+        });
+      });
+      
+      labelMarker.on('mouseout', () => {
+        // Reset style on mouse out
+        if (tabType === 'waterpoints') {
+          layer.setStyle({
+            fillColor: 'transparent',
+            weight: 2,
+            opacity: 1,
+            color: '#000000',
+            fillOpacity: 0
+          });
+        } else {
+          // Get the original style for sublocations
+          const feature = layer.feature;
+          if (feature && feature.properties) {
+            layer.setStyle({
+              fillColor: getColorByCategory(feature.properties.category),
+              weight: 2,
+              opacity: 1,
+              color: 'white',
+              fillOpacity: 0.7
+            });
+          }
+        }
+      });
+      
+      labelMarker.addTo(mapInstanceRef.current);
+      
+      // Store reference for zoom-based updates (with error handling)
+      try {
+        if (!mapInstanceRef.current._adaptiveLabels) {
+          mapInstanceRef.current._adaptiveLabels = [];
+        }
+        mapInstanceRef.current._adaptiveLabels.push({
+          marker: labelMarker,
+          layer: layer,
+          text: labelText,
+          tabType: tabType
+        });
+      } catch (e) {
+        console.warn('Error storing label reference:', e);
+      }
+      
+    } catch (error) {
+      console.warn('Error adding adaptive label:', error);
+      // Simple fallback
+      const bounds = layer.getBounds();
+      const center = bounds.getCenter();
+      const simpleLabel = window.L.marker(center, {
+        icon: window.L.divIcon({
+          className: 'simple-label',
+          html: `<div style="font-size: 10px; font-weight: bold; color: #333; text-shadow: 1px 1px 2px rgba(255,255,255,0.9); pointer-events: none;">${labelText}</div>`,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0]
+        })
+      });
+      simpleLabel.addTo(mapInstanceRef.current);
+    }
+  };
+  
+  // Create curved text for better polygon fitting
+  const createCurvedText = (text, fontSize, baseRotation) => {
+    try {
+      const letters = text.split('');
+      const totalAngle = Math.min(60, letters.length * 8);
+      const angleStep = totalAngle / Math.max(1, letters.length - 1);
+      const radius = Math.max(30, fontSize * 2);
+      
+      const containerStyle = `position: relative; width: ${radius * 2}px; height: ${radius * 2}px; transform: rotate(${baseRotation}deg);`;
+      let curvedHtml = `<div style="${containerStyle}">`;
+      
+      letters.forEach((letter, index) => {
+        const angle = (index * angleStep) - (totalAngle / 2);
+        const x = radius + radius * Math.cos((angle - 90) * Math.PI / 180);
+        const y = radius + radius * Math.sin((angle - 90) * Math.PI / 180);
+        
+        const letterStyle = `position: absolute; left: ${x}px; top: ${y}px; transform: translate(-50%, -50%) rotate(${angle}deg); font-size: ${fontSize}px; font-weight: bold; color: #333; text-shadow: 2px 2px 4px rgba(255,255,255,0.95), -1px -1px 2px rgba(255,255,255,0.95), 1px -1px 2px rgba(255,255,255,0.95), -1px 1px 2px rgba(255,255,255,0.95); pointer-events: none; user-select: none;`;
+        
+        curvedHtml += `<span style="${letterStyle}">${letter}</span>`;
+      });
+      
+      curvedHtml += '</div>';
+      return curvedHtml;
+    } catch (error) {
+      console.warn('Error creating curved text:', error);
+      // Fallback to simple text
+      return `<div style="font-size: ${fontSize}px; font-weight: bold; color: #333; text-shadow: 1px 1px 2px rgba(255,255,255,0.9); transform: rotate(${baseRotation}deg);">${text}</div>`;
+    }
+  };
+  
+  // Function to update labels on zoom (simplified)
+  const updateLabelsOnZoom = () => {
+    try {
+      if (!mapInstanceRef.current || !mapInstanceRef.current._adaptiveLabels) return;
+      
+      // Clear adaptive labels array to prevent memory leaks
+      mapInstanceRef.current._adaptiveLabels.forEach(labelData => {
+        try {
+          mapInstanceRef.current.removeLayer(labelData.marker);
+        } catch (e) {
+          console.warn('Error removing label:', e);
+        }
+      });
+      
+      // Reset the array
+      mapInstanceRef.current._adaptiveLabels = [];
+      
+    } catch (error) {
+      console.warn('Error updating labels on zoom:', error);
+    }
+  };
+  
+  // Helper function to get color (needed for mouse events)
+  const getColorByCategory = (category) => {
+    switch (category) {
+      case 'Very Weak': return '#ff0000';
+      case 'Weak': return '#ff8800';
+      case 'Good': return '#88ccff';
+      case 'Very Good': return '#0066cc';
+      default: return '#cccccc';
+    }
+  };
+
+  // 🧠 ADVANCED AI INTELLIGENCE FUNCTIONS
+  
+  // Enhanced highlighting with visual effects
+  const highlightSpecificAreas = React.useCallback(async (areaNames, options = {}) => {
+    console.log('🎯 AI Highlighting Areas:', areaNames, 'with options:', options);
+    
+    if (!mapInstanceRef.current || !mapData) return;
+    
+    // Clear previous highlights
+    mapInstanceRef.current.eachLayer((layer) => {
+      if (layer._isHighlighted) {
+        layer.setStyle(layer._originalStyle);
+        layer._isHighlighted = false;
+      }
+    });
+    
+    // Find and highlight target areas
+    mapInstanceRef.current.eachLayer((layer) => {
+      if (layer.feature && layer.feature.properties) {
+        const areaName = layer.feature.properties.name.toUpperCase();
+        const shouldHighlight = areaNames.some(name => 
+          areaName.includes(name.toUpperCase()) || name.toUpperCase().includes(areaName)
+        );
+        
+        if (shouldHighlight) {
+          // Store original style
+          if (!layer._originalStyle) {
+            layer._originalStyle = {
+              fillColor: layer.options.fillColor,
+              weight: layer.options.weight,
+              opacity: layer.options.opacity,
+              color: layer.options.color,
+              fillOpacity: layer.options.fillOpacity
+            };
+          }
+          
+          // Apply highlight style
+          const highlightStyle = {
+            fillColor: options.glow?.color || '#ffff00',
+            weight: 4,
+            opacity: 1,
+            color: '#ff0000',
+            fillOpacity: 0.8
+          };
+          
+          layer.setStyle(highlightStyle);
+          layer._isHighlighted = true;
+          
+          // Add pulse animation if requested
+          if (options.pulse || options.animation) {
+            addPulseToLayer(layer);
+          }
+        }
+      }
+    });
+  }, [mapData]);
+
+  // AI-controlled zoom to location
+  const zoomToLocation = React.useCallback(async (locationName) => {
+    console.log('🎯 AI Zooming to location:', locationName);
+    
+    if (!mapData || !mapData.features || !mapInstanceRef.current) return;
+    
+    // Fuzzy search for location
+    const targetFeature = mapData.features.find(f => {
+      const name = f.properties.name.toLowerCase();
+      const searchName = locationName.toLowerCase();
+      return name.includes(searchName) || searchName.includes(name);
+    });
+    
+    if (targetFeature) {
+      const bounds = window.L.geoJSON(targetFeature).getBounds();
+      mapInstanceRef.current.fitBounds(bounds, { 
+        padding: [30, 30],
+        maxZoom: 15
+      });
+    }
+  }, [mapData]);
+
+  // Zoom to multiple areas for comparison
+  const zoomToMultipleAreas = React.useCallback(async (areaNames) => {
+    console.log('🎯 AI Zooming to comparison areas:', areaNames);
+    
+    if (!mapData || !mapData.features || !mapInstanceRef.current) return;
+    
+    const targetFeatures = mapData.features.filter(f => 
+      areaNames.some(name => 
+        f.properties.name.toLowerCase().includes(name.toLowerCase()) ||
+        name.toLowerCase().includes(f.properties.name.toLowerCase())
+      )
+    );
+    
+    if (targetFeatures.length > 0) {
+      const group = window.L.featureGroup(targetFeatures.map(f => window.L.geoJSON(f)));
+      mapInstanceRef.current.fitBounds(group.getBounds(), { 
+        padding: [20, 20],
+        maxZoom: 13
+      });
+    }
+  }, [mapData]);
+
+  // Handle focus comparison with visual emphasis
+  const handleFocusComparison = React.useCallback(async (comparison) => {
+    console.log('🎯 AI Focus Comparison:', comparison);
+    
+    const { primary, secondary } = comparison;
+    
+    // Highlight both areas with different styles
+    await highlightSpecificAreas([primary], { 
+      glow: { color: '#ff0000' },
+      animation: true 
+    });
+    
+    setTimeout(async () => {
+      await highlightSpecificAreas([secondary], { 
+        glow: { color: '#0066cc' },
+        animation: true 
+      });
+    }, 500);
+    
+    // Zoom to show both areas
+    setTimeout(async () => {
+      await zoomToMultipleAreas([primary, secondary]);
+    }, 1000);
+  }, []);
+
+  // AI-controlled popup display
+  const showAIControlledPopup = React.useCallback(async (popupConfig) => {
+    console.log('💬 AI Showing Popup:', popupConfig);
+    
+    if (!mapInstanceRef.current || !mapData) return;
+    
+    const { location, details } = popupConfig;
+    
+    // Find the target layer
+    mapInstanceRef.current.eachLayer((layer) => {
+      if (layer.feature && layer.feature.properties) {
+        const areaName = layer.feature.properties.name.toLowerCase();
+        if (areaName.includes(location.toLowerCase()) || location.toLowerCase().includes(areaName)) {
+          // Create enhanced popup content
+          const props = layer.feature.properties;
+          const popupContent = `
+            <div style="font-family: Arial, sans-serif; min-width: 200px;">
+              <h3 style="margin: 0 0 10px 0; color: #333; border-bottom: 2px solid #0066cc; padding-bottom: 5px;">
+                🎯 ${props.name}
+              </h3>
+              <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                <p style="margin: 5px 0;"><strong>🚰 Accessibility Score:</strong> ${props.accessibility.toFixed(3)}</p>
+                <p style="margin: 5px 0;"><strong>📊 Category:</strong> 
+                  <span style="color: ${getColorByCategory(props.category)}; font-weight: bold;">
+                    ${props.category}
+                  </span>
+                </p>
+                <p style="margin: 5px 0;"><strong>👥 Population:</strong> ${props.population.toLocaleString()}</p>
+              </div>
+              <div style="font-size: 0.9em; color: #666; font-style: italic;">
+                🤖 AI Analysis: Click map for more details
+              </div>
+            </div>
+          `;
+          
+          layer.bindPopup(popupContent).openPopup();
+          
+          // Auto-close after 10 seconds unless user interacts
+          setTimeout(() => {
+            if (layer.getPopup() && layer.getPopup().isOpen()) {
+              layer.closePopup();
+            }
+          }, 10000);
+        }
+      }
+    });
+  }, [mapData]);
+
+  // Execute popup sequence for comparison
+  const executePopupSequence = React.useCallback(async (locations) => {
+    console.log('💬 AI Popup Sequence:', locations);
+    
+    for (let i = 0; i < locations.length; i++) {
+      await showAIControlledPopup({ location: locations[i], details: 'full' });
+      if (i < locations.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
+      }
+    }
+  }, [showAIControlledPopup]);
+
+  // Add pulse animation to layer
+  const addPulseToLayer = (layer) => {
+    let pulseCount = 0;
+    const maxPulses = 3;
+    
+    const pulse = () => {
+      if (pulseCount >= maxPulses) return;
+      
+      // Expand
+      layer.setStyle({ fillOpacity: 0.9, weight: 6 });
+      
+      setTimeout(() => {
+        // Contract
+        layer.setStyle({ fillOpacity: 0.6, weight: 4 });
+        pulseCount++;
+        
+        if (pulseCount < maxPulses) {
+          setTimeout(pulse, 200);
+        }
+      }, 200);
+    };
+    
+    pulse();
+  };
+
+  // Add pulse animation to specific areas
+  const addPulseAnimation = React.useCallback(async (areaNames) => {
+    console.log('✨ AI Pulse Animation for:', areaNames);
+    
+    mapInstanceRef.current.eachLayer((layer) => {
+      if (layer.feature && layer.feature.properties) {
+        const areaName = layer.feature.properties.name.toUpperCase();
+        const shouldPulse = areaNames.some(name => 
+          areaName.includes(name.toUpperCase()) || name.toUpperCase().includes(areaName)
+        );
+        
+        if (shouldPulse) {
+          addPulseToLayer(layer);
+        }
+      }
+    });
+  }, []);
+
+  // Filter by accessibility category
+  const filterByCategory = React.useCallback(async (categories) => {
+    console.log('🔍 AI Filtering by categories:', categories);
+    
+    mapInstanceRef.current.eachLayer((layer) => {
+      if (layer.feature && layer.feature.properties) {
+        const category = layer.feature.properties.category;
+        if (categories.includes(category)) {
+          layer.setStyle({ fillOpacity: 0.7, opacity: 1 });
+        } else {
+          layer.setStyle({ fillOpacity: 0.1, opacity: 0.3 });
+        }
+      }
+    });
+  }, []);
+
+  // Filter by population
+  const filterByPopulation = React.useCallback(async (populationRange) => {
+    console.log('🔍 AI Filtering by population:', populationRange);
+    
+    const { min, max } = populationRange;
+    
+    mapInstanceRef.current.eachLayer((layer) => {
+      if (layer.feature && layer.feature.properties) {
+        const population = layer.feature.properties.population;
+        if (population >= min && population <= max) {
+          layer.setStyle({ fillOpacity: 0.7, opacity: 1 });
+        } else {
+          layer.setStyle({ fillOpacity: 0.1, opacity: 0.3 });
+        }
+      }
+    });
+  }, []);
+
+  // Show accessibility heatmap
+  const showAccessibilityHeatmap = React.useCallback(async () => {
+    console.log('🌡️ AI Showing Accessibility Heatmap');
+    
+    mapInstanceRef.current.eachLayer((layer) => {
+      if (layer.feature && layer.feature.properties) {
+        const category = layer.feature.properties.category;
+        layer.setStyle({
+          fillOpacity: 0.8,
+          weight: 2,
+          opacity: 1,
+          color: 'white',
+          fillColor: getColorByCategory(category)
+        });
+      }
+    });
+  }, []);
+
+  // Show water points with filters
+  const showWaterPointsWithFilters = React.useCallback(async (filters) => {
+    console.log('💧 AI Showing Water Points with filters:', filters);
+    // This would coordinate with the water points display
+    // Implementation would filter and highlight specific water points
+  }, []);
+
+  // Execute zoom sequence (tour multiple locations)
+  const executeZoomSequence = React.useCallback(async (locations) => {
+    console.log('🎬 AI Zoom Sequence Tour:', locations);
+    
+    for (let i = 0; i < locations.length; i++) {
+      await zoomToLocation(locations[i]);
+      await showAIControlledPopup({ location: locations[i], details: 'summary' });
+      
+      if (i < locations.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 2500)); // 2.5 second pause
+      }
+    }
+  }, [zoomToLocation, showAIControlledPopup]);
+
+  // 🤖 ADVANCED AI MAP INTELLIGENCE - Handle comprehensive AI instructions
+  React.useEffect(() => {
+    if (mapInstructions && mapInstanceRef.current && mapData) {
+      console.log('🧠 AI Intelligence System Processing Instructions:', mapInstructions);
+      
+      // Execute AI instructions in logical sequence for optimal UX
+      const executeAIInstructions = async () => {
+        try {
+          // 1. VIEW MANAGEMENT (First Priority)
+          if (mapInstructions.switch_to_view) {
+            console.log('🎯 AI View Switch:', mapInstructions.switch_to_view);
+            // View switching is handled by MapLayerTabs component
+          }
+
+          // 2. HIGHLIGHTING & VISUAL ENHANCEMENTS
+          if (mapInstructions.highlight_areas) {
+            await highlightSpecificAreas(mapInstructions.highlight_areas, {
+              animation: mapInstructions.highlight_with_animation,
+              glow: mapInstructions.glow_effect,
+              pulse: mapInstructions.pulse_animation
+            });
+          }
+
+          if (mapInstructions.focus_comparison) {
+            await handleFocusComparison(mapInstructions.focus_comparison);
+          }
+
+          // 3. SPATIAL NAVIGATION & ZOOM
+          if (mapInstructions.zoom_to_location) {
+            await zoomToLocation(mapInstructions.zoom_to_location);
+          }
+
+          if (mapInstructions.zoom_to_comparison) {
+            await zoomToMultipleAreas(mapInstructions.zoom_to_comparison);
+          }
+
+          if (mapInstructions.zoom_sequence) {
+            await executeZoomSequence(mapInstructions.zoom_sequence);
+          }
+
+          // 4. POPUP & INFORMATION DISPLAY
+          if (mapInstructions.show_popup) {
+            await showAIControlledPopup(mapInstructions.show_popup);
+          }
+
+          if (mapInstructions.popup_sequence) {
+            await executePopupSequence(mapInstructions.popup_sequence);
+          }
+
+          // 5. FILTERING & DATA DISPLAY
+          if (mapInstructions.filter_by_category) {
+            await filterByCategory(mapInstructions.filter_by_category);
+          }
+
+          if (mapInstructions.filter_by_population) {
+            await filterByPopulation(mapInstructions.filter_by_population);
+          }
+
+          // 6. VISUAL EFFECTS
+          if (mapInstructions.pulse_animation) {
+            await addPulseAnimation(mapInstructions.pulse_animation);
+          }
+
+          if (mapInstructions.accessibility_heatmap) {
+            await showAccessibilityHeatmap();
+          }
+
+          // 7. WATER POINT CONTROLS
+          if (mapInstructions.show_water_points) {
+            await showWaterPointsWithFilters(mapInstructions.show_water_points);
+          }
+
+          console.log('✅ AI Instructions Executed Successfully');
+          
+        } catch (error) {
+          console.error('❌ AI Instruction Execution Error:', error);
+        }
+      };
+
+      executeAIInstructions();
+    }
+  }, [mapInstructions, mapData]);
+
+  if (!mapData && !waterPointsData) {
+    return (
+      <div className="map-placeholder">
+        🔄 Loading map data...
+        <br />
+        <small>Connecting to backend at {API_BASE_URL}</small>
+      </div>
+    );
+  }
+
+  return (
+    <div className="map-wrapper">
+      <div className="map-info-bar">
+        {mapData && (
+          <span className="map-status">
+            🗺️ {mapData.features?.length || 0} sublocations
+          </span>
+        )}
+        {waterPointsData && (
+          <span className="water-points-status">
+            💧 {waterPointsData.features?.length || 0} water points
+          </span>
+        )}
+        {!mapData && !waterPointsData && (
+          <span className="map-status">Select a layer to view data</span>
+        )}
+      </div>
+      <div ref={mapRef} className="leaflet-map" />
+    </div>
+  );
+};
+
+export default App;

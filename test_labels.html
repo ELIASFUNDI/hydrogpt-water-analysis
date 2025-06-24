@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Label Test</title>
+    <style>
+        .test-label {
+            transform-origin: center center;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Polygon-Fitted Label Test</h1>
+    
+    <div class="test-label" style="transform: rotate(20deg);">
+        SAMPLE SUBLOCATION NAME
+    </div>
+    
+    <script>
+        // Test if transform and rotation work
+        console.log('Label transform test working');
+        
+        // Test template literal interpolation
+        const rotation = 45;
+        const fontSize = 10;
+        const testStyle = `transform: rotate(${rotation}deg); font-size: ${fontSize}px;`;
+        console.log('Template literal test:', testStyle);
+    </script>
+</body>
+</html>

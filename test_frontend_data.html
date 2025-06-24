@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend Data Test</title>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 400px; width: 100%; }
+        .info { margin: 20px; padding: 10px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>HydroGPT Frontend Data Test</h1>
+    
+    <div class="info">
+        <h3>Backend Connection Test</h3>
+        <div id="connection-status">Testing...</div>
+    </div>
+    
+    <div class="info">
+        <h3>Map Data Test</h3>
+        <div id="map-data-status">Loading...</div>
+        <div id="map"></div>
+    </div>
+
+    <script>
+        // Test backend connection
+        fetch('http://localhost:8000/api/default-map-data')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('connection-status').innerHTML = 
+                    `✅ Connected: ${data.features ? data.features.length + ' features loaded' : 'No features'}`;
+                
+                if (data.features && data.features.length > 0) {
+                    document.getElementById('map-data-status').innerHTML = 
+                        `✅ ${data.features.length} features loaded. First feature: ${data.features[0].properties.name}`;
+                    
+                    // Create map
+                    const map = L.map('map').setView([-0.7, 37.6], 10);
+                    
+                    // Add base map
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(map);
+                    
+                    // Add data
+                    const geoJsonLayer = L.geoJSON(data, {
+                        style: function(feature) {
+                            return {
+                                fillColor: getColor(feature.properties.category),
+                                weight: 2,
+                                opacity: 1,
+                                color: 'white',
+                                fillOpacity: 0.7
+                            };
+                        },
+                        onEachFeature: function(feature, layer) {
+                            layer.bindPopup(`
+                                <b>${feature.properties.name}</b><br>
+                                Accessibility: ${feature.properties.accessibility.toFixed(3)}<br>
+                                Category: ${feature.properties.category}<br>
+                                Population: ${feature.properties.population.toLocaleString()}
+                            `);
+                        }
+                    }).addTo(map);
+                    
+                    // Fit map to data
+                    map.fitBounds(geoJsonLayer.getBounds());
+                    
+                    document.getElementById('map-data-status').innerHTML += 
+                        '<br>✅ Map rendered successfully!';
+                        
+                } else {
+                    document.getElementById('map-data-status').innerHTML = 
+                        '❌ No features in data: ' + JSON.stringify(data).substring(0, 200);
+                }
+            })
+            .catch(error => {
+                document.getElementById('connection-status').innerHTML = 
+                    `❌ Connection failed: ${error.message}`;
+                document.getElementById('map-data-status').innerHTML = 
+                    `❌ Failed to load map data: ${error.message}`;
+            });
+            
+        function getColor(category) {
+            switch (category) {
+                case 'Very Weak': return '#ff0000';
+                case 'Weak': return '#ff8800';
+                case 'Good': return '#88ccff';
+                case 'Very Good': return '#0066cc';
+                default: return '#cccccc';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Adaptive Labels Test</title>
+    <style>
+        .test-container {
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #ccc;
+        }
+        
+        .curved-demo {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            border: 2px dashed #999;
+        }
+        
+        .adaptive-label {
+            transform-origin: center center;
+            pointer-events: auto;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .adaptive-label:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>🏷️ Adaptive Labeling System Test</h1>
+    
+    <div class="test-container">
+        <h3>Straight Label (Normal Polygon)</h3>
+        <div class="adaptive-label" style="transform: rotate(15deg);">
+            <div style="font-size: 12px; font-weight: bold; color: #333; text-shadow: 2px 2px 4px rgba(255,255,255,0.95); cursor: pointer;">
+                SAMPLE SUBLOCATION
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-container">
+        <h3>Curved Label Demo</h3>
+        <div class="curved-demo" id="curvedDemo"></div>
+    </div>
+    
+    <div class="test-container">
+        <h3>Interactive Features</h3>
+        <ul>
+            <li>✅ Zoom-responsive font sizing</li>
+            <li>✅ Polygon shape-aware rotation</li>
+            <li>✅ Interactive hover effects</li>
+            <li>✅ Click to zoom functionality</li>
+            <li>✅ Curved text for complex shapes</li>
+            <li>✅ Consistent styling across all map views</li>
+        </ul>
+    </div>
+    
+    <script>
+        // Create curved text demo
+        function createCurvedTextDemo() {
+            const container = document.getElementById('curvedDemo');
+            const text = 'CURVED LABEL';
+            const letters = text.split('');
+            const totalAngle = 60;
+            const angleStep = totalAngle / (letters.length - 1);
+            const radius = 60;
+            
+            let html = '<div style="position: relative; width: 120px; height: 120px; margin: 40px auto;">';
+            
+            letters.forEach((letter, index) => {
+                const angle = (index * angleStep) - (totalAngle / 2);
+                const x = 60 + radius * Math.cos((angle - 90) * Math.PI / 180);
+                const y = 60 + radius * Math.sin((angle - 90) * Math.PI / 180);
+                
+                html += `<span style="
+                    position: absolute;
+                    left: ${x}px;
+                    top: ${y}px;
+                    transform: translate(-50%, -50%) rotate(${angle}deg);
+                    font-size: 12px;
+                    font-weight: bold;
+                    color: #333;
+                    text-shadow: 2px 2px 4px rgba(255,255,255,0.95);
+                ">${letter}</span>`;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        createCurvedTextDemo();
+        
+        console.log('✅ Adaptive labeling system test loaded successfully');
+    </script>
+</body>
+</html>

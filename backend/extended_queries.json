@@ -1,0 +1,195 @@
+{
+  "extended_query_database": {
+    "emergency_planning": [
+      {
+        "query": "Which areas need immediate water intervention?",
+        "intent": "emergency_priority",
+        "response_type": "text_map_chart",
+        "complexity": "high"
+      },
+      {
+        "query": "Show drought vulnerability zones",
+        "intent": "drought_risk_analysis", 
+        "response_type": "text_map_chart",
+        "complexity": "high"
+      },
+      {
+        "query": "Emergency water distribution points planning",
+        "intent": "emergency_distribution",
+        "response_type": "text_map_chart", 
+        "complexity": "very_high"
+      }
+    ],
+    "infrastructure_planning": [
+      {
+        "query": "Cost-benefit analysis of water point placement",
+        "intent": "economic_analysis",
+        "response_type": "text_map_chart",
+        "complexity": "very_high"
+      },
+      {
+        "query": "Optimal water pipeline routes",
+        "intent": "pipeline_planning",
+        "response_type": "text_map",
+        "complexity": "very_high"
+      },
+      {
+        "query": "Maintenance schedule for water infrastructure",
+        "intent": "maintenance_planning",
+        "response_type": "text_chart",
+        "complexity": "medium"
+      }
+    ],
+    "demographic_analysis": [
+      {
+        "query": "Population growth impact on water demand",
+        "intent": "population_projection",
+        "response_type": "text_chart",
+        "complexity": "high"
+      },
+      {
+        "query": "Gender-based water access challenges",
+        "intent": "gender_analysis", 
+        "response_type": "text_map_chart",
+        "complexity": "high"
+      },
+      {
+        "query": "Children affected by poor water access",
+        "intent": "vulnerable_population",
+        "response_type": "text_map_chart",
+        "complexity": "medium"
+      }
+    ],
+    "seasonal_analysis": [
+      {
+        "query": "Seasonal water availability patterns",
+        "intent": "seasonal_analysis",
+        "response_type": "text_chart",
+        "complexity": "medium"
+      },
+      {
+        "query": "Dry season water stress areas",
+        "intent": "seasonal_stress",
+        "response_type": "text_map_chart",
+        "complexity": "high"
+      }
+    ],
+    "quality_analysis": [
+      {
+        "query": "Water quality assessment by location",
+        "intent": "quality_spatial",
+        "response_type": "text_map_chart", 
+        "complexity": "high"
+      },
+      {
+        "query": "Safe water source identification",
+        "intent": "safe_water_mapping",
+        "response_type": "text_map",
+        "complexity": "medium"
+      }
+    ],
+    "accessibility_variants": [
+      "Show water accessibility in all areas",
+      "Display accessibility map",
+      "Water access overview", 
+      "Accessibility heat map",
+      "Show all sublocations with scores",
+      "Complete accessibility analysis",
+      "Full water access report",
+      "Comprehensive accessibility data",
+      "Show accessibility categories",
+      "Display water access levels"
+    ],
+    "location_variants": {
+      "KARABA": [
+        "How is KARABA doing?",
+        "KARABA water situation", 
+        "Show me KARABA area",
+        "KARABA accessibility",
+        "What about KARABA?",
+        "KARABA water access report",
+        "Focus on KARABA",
+        "KARABA analysis"
+      ],
+      "KIAMBERE": [
+        "Tell me about KIAMBERE",
+        "KIAMBERE water access",
+        "How is KIAMBERE performing?",
+        "KIAMBERE area analysis",
+        "Show KIAMBERE on map",
+        "KIAMBERE water situation"
+      ]
+    },
+    "comparison_queries": [
+      "Which is better: {area1} or {area2}?",
+      "Compare accessibility between {area1} and {area2}",
+      "{area1} vs {area2} water access",
+      "Difference between {area1} and {area2}",
+      "Is {area1} better than {area2}?",
+      "How does {area1} compare to {area2}?",
+      "Contrast {area1} with {area2}",
+      "Side by side: {area1} and {area2}"
+    ],
+    "statistical_queries": [
+      "What are the statistics?",
+      "Show me the numbers",
+      "Give me data summary",
+      "Statistical overview",
+      "Data analysis report", 
+      "Numbers breakdown",
+      "Statistical insights",
+      "Data dashboard",
+      "Summary statistics",
+      "Key metrics"
+    ],
+    "ranking_queries": [
+      "Best performing areas",
+      "Top water access areas",
+      "Worst accessibility zones", 
+      "Bottom performing sublocations",
+      "Rank by water access",
+      "Order by accessibility",
+      "Sort areas by performance",
+      "Performance ranking",
+      "Accessibility leaderboard",
+      "Top and bottom areas"
+    ],
+    "complex_scenarios": [
+      {
+        "query": "If we improve transport in {area}, how would accessibility change?",
+        "intent": "scenario_analysis",
+        "complexity": "very_high"
+      },
+      {
+        "query": "Multi-criteria decision analysis for water investment",
+        "intent": "decision_support",
+        "complexity": "very_high"
+      },
+      {
+        "query": "Spatial clustering of water access patterns",
+        "intent": "spatial_analysis",
+        "complexity": "very_high"
+      },
+      {
+        "query": "Network analysis of water distribution",
+        "intent": "network_analysis", 
+        "complexity": "very_high"
+      }
+    ]
+  },
+  "response_templates": {
+    "error_handling": {
+      "location_not_found": "I couldn't find the location '{location}'. Available sublocations are: {available_locations}",
+      "invalid_comparison": "I need at least two valid locations to make a comparison.",
+      "no_data": "No data available for this query. Please try a different question.",
+      "unclear_intent": "I'm not sure what you're asking. Could you rephrase your question?"
+    },
+    "confirmation_prompts": [
+      "Would you like me to show this on the map?",
+      "Should I generate a chart for this data?", 
+      "Would you like more details about this area?",
+      "Shall I compare this with other areas?",
+      "Do you want to see the underlying data?"
+    ]
+  }
+}

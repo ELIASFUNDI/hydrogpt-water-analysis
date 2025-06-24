@@ -1,0 +1,66 @@
+# HydroGPT - Complete Water Accessibility Analysis System
+
+## Project Overview
+Build a complete water accessibility analysis system for Mbeere South Subcounty, Kenya using SCM-G2SFCA methodology.
+
+## Current Status
+- ✅ Backend API working (FastAPI + PostgreSQL)
+- ✅ Database with shapefiles loaded (sublocations, waterpoints, homesteads)
+- ✅ React frontend structure
+- ❌ Map not displaying shapefiles properly
+- ❌ Limited query responses
+- ❌ Need comprehensive analysis capabilities
+
+## Required Completions
+
+### 1. Fix Interactive Map
+- Display actual sublocation polygons from database
+- Show water points as markers with capacity indicators
+- Color-code areas by accessibility scores (Very Weak=red, Weak=orange, Good=lightblue, Very Good=darkblue)
+- Add popup information on click
+- Zoom to sublocation on query
+- Show homestead points when requested
+
+### 2. Comprehensive LLM Integration
+- Answer ALL possible questions about water accessibility
+- Generate insights from SCM-G2SFCA analysis
+- Provide policy recommendations
+- Compare sublocations intelligently
+- Statistical analysis and summaries
+- Methodology explanations
+
+### 3. Advanced Query Capabilities
+Handle queries like:
+- "Show me Makima on the map"
+- "Which areas need urgent intervention?"
+- "Compare walking vs driving accessibility"
+- "How many people have poor water access?"
+- "What's the population-weighted average accessibility?"
+- "Show water points by capacity"
+- "Explain SCM-G2SFCA methodology"
+- "What are the infrastructure gaps?"
+
+### 4. Dynamic Chart Generation
+- Bar charts for rankings
+- Pie charts for category distribution
+- Population impact analysis
+- Mode-specific accessibility comparison
+- Infrastructure gap analysis
+
+### 5. Map Control Integration
+LLM should control map based on queries:
+- Highlight specific areas
+- Filter water points
+- Zoom to locations
+- Change color schemes
+- Show/hide layers
+
+## Technical Requirements
+
+### Database Schema
+```sql
+-- Current tables in PostgreSQL
+- sublocations (geometry, accessibility scores, population)
+- waterpoints (geometry, capacity scores, types)
+- homesteads (geometry, accessibility by mode)
+- sublocation_statistics (pre-computed summaries)

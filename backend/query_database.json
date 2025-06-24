@@ -1,0 +1,248 @@
+{
+  "query_categories": {
+    "basic_info": {
+      "description": "General information about methodology, system, and basic concepts",
+      "response_type": "text_only",
+      "queries": [
+        {
+          "id": "basic_001",
+          "query": "What is SCM-G2SFCA methodology?",
+          "intent": "methodology_explanation",
+          "response_template": "SCM-G2SFCA (Supply Competition Multiple-modal Gaussian 2-step Floating Catchment Area) is an advanced spatial accessibility analysis methodology. It evaluates water accessibility by considering: 1) Multiple transport modes (Walking 30min-70%, Animals 45min-20%, Driving 60min-10%), 2) Supply competition between demand points, 3) Gaussian distance decay functions, 4) Terrain-adjusted travel times using Tobler's hiking function.",
+          "map_instructions": null,
+          "chart_instructions": null
+        },
+        {
+          "id": "basic_002", 
+          "query": "How many sublocations are in the study area?",
+          "intent": "count_sublocations",
+          "response_template": "There are 19 sublocations in Mbeere South Subcounty: {sublocation_list}",
+          "map_instructions": {"show_all_boundaries": true, "highlight_all": true},
+          "chart_instructions": null
+        },
+        {
+          "id": "basic_003",
+          "query": "What do the accessibility categories mean?",
+          "intent": "category_explanation", 
+          "response_template": "Water accessibility is classified into 4 categories: Very Weak (0-1.0) - Critical intervention needed, Weak (1.0-1.2) - Improvement required, Good (1.2-1.5) - Adequate access, Very Good (1.5+) - Excellent access. These scores are based on combined accessibility from multiple transport modes.",
+          "map_instructions": {"accessibility_heatmap": true},
+          "chart_instructions": {"category_distribution": true}
+        }
+      ]
+    },
+    "location_specific": {
+      "description": "Queries about specific sublocations",
+      "response_type": "text_map",
+      "queries": [
+        {
+          "id": "location_001",
+          "query": "How is water accessibility in {sublocation}?",
+          "intent": "single_location_analysis",
+          "response_template": "{sublocation} has {category} water accessibility with a score of {score}. This means {interpretation}. The area serves {population} people.",
+          "map_instructions": {
+            "zoom_to_location": "{sublocation}",
+            "highlight_areas": ["{sublocation}"],
+            "show_water_points": true
+          },
+          "chart_instructions": null
+        },
+        {
+          "id": "location_002",
+          "query": "Show me {sublocation} on the map",
+          "intent": "map_display",
+          "response_template": "Here is {sublocation} highlighted on the map. You can see its accessibility level and nearby water points.",
+          "map_instructions": {
+            "zoom_to_location": "{sublocation}",
+            "highlight_areas": ["{sublocation}"],
+            "show_water_points": true
+          },
+          "chart_instructions": null
+        },
+        {
+          "id": "location_003", 
+          "query": "What water points are near {sublocation}?",
+          "intent": "water_points_analysis",
+          "response_template": "Near {sublocation}, there are {water_point_count} water points with capacity scores ranging from {min_capacity} to {max_capacity}. The main water sources include {water_sources}.",
+          "map_instructions": {
+            "zoom_to_location": "{sublocation}",
+            "show_water_points": true,
+            "filter_water_points_near": "{sublocation}"
+          },
+          "chart_instructions": {"water_points_capacity": "{sublocation}"}
+        }
+      ]
+    },
+    "comparative": {
+      "description": "Comparing multiple locations or categories",
+      "response_type": "text_map_chart",
+      "queries": [
+        {
+          "id": "comparative_001",
+          "query": "Which areas have better access than {sublocation}?",
+          "intent": "better_access_comparison",
+          "response_template": "Areas with better water access than {sublocation} (score: {reference_score}) include: {better_areas}. These areas have accessibility scores ranging from {min_better_score} to {max_better_score}.",
+          "map_instructions": {
+            "highlight_areas": "{better_areas}",
+            "reference_area": "{sublocation}",
+            "accessibility_heatmap": true
+          },
+          "chart_instructions": {"comparison_chart": {"reference": "{sublocation}", "type": "better"}}
+        },
+        {
+          "id": "comparative_002",
+          "query": "Compare {sublocation1} and {sublocation2}",
+          "intent": "two_location_comparison", 
+          "response_template": "{sublocation1} has {category1} access (score: {score1}) while {sublocation2} has {category2} access (score: {score2}). The difference is {score_difference}, meaning {interpretation}.",
+          "map_instructions": {
+            "highlight_areas": ["{sublocation1}", "{sublocation2}"],
+            "show_water_points": true
+          },
+          "chart_instructions": {"comparison_chart": {"areas": ["{sublocation1}", "{sublocation2}"]}}
+        },
+        {
+          "id": "comparative_003",
+          "query": "Which sublocation has the best water access?",
+          "intent": "best_access_query",
+          "response_template": "{best_sublocation} has the best water accessibility with a score of {best_score} ({best_category}). This area serves {best_population} people and has {best_water_points} nearby water points.",
+          "map_instructions": {
+            "highlight_areas": ["{best_sublocation}"],
+            "zoom_to_location": "{best_sublocation}",
+            "accessibility_heatmap": true
+          },
+          "chart_instructions": {"accessibility_ranking": "desc"}
+        }
+      ]
+    },
+    "statistical": {
+      "description": "Statistical analysis and data summaries",
+      "response_type": "text_chart",
+      "queries": [
+        {
+          "id": "statistical_001",
+          "query": "What's the average accessibility score?",
+          "intent": "average_accessibility",
+          "response_template": "The average water accessibility score across all sublocations is {avg_score} ({avg_category}). Scores range from {min_score} to {max_score}. {above_avg_count} areas are above average, while {below_avg_count} are below average.",
+          "map_instructions": {"accessibility_heatmap": true},
+          "chart_instructions": {"statistics_summary": true, "comparison_to_average": true}
+        },
+        {
+          "id": "statistical_002",
+          "query": "How many people have poor water access?",
+          "intent": "population_poor_access",
+          "response_template": "{poor_population} people ({poor_percentage}% of total population) live in areas with poor water access (Very Weak or Weak categories). This includes {very_weak_pop} in Very Weak areas and {weak_pop} in Weak areas.",
+          "map_instructions": {
+            "filter_by_category": ["Very Weak", "Weak"],
+            "highlight_poor_access": true
+          },
+          "chart_instructions": {"population_impact": true, "category_distribution": true}
+        },
+        {
+          "id": "statistical_003",
+          "query": "Show me accessibility statistics",
+          "intent": "full_statistics",
+          "response_template": "Water Accessibility Statistics for Mbeere South: Total Population: {total_pop}, Average Score: {avg_score}, Very Good: {vg_count} areas ({vg_pop} people), Good: {good_count} areas ({good_pop} people), Weak: {weak_count} areas ({weak_pop} people), Very Weak: {vw_count} areas ({vw_pop} people).",
+          "map_instructions": {"accessibility_heatmap": true},
+          "chart_instructions": {"full_statistics_dashboard": true}
+        }
+      ]
+    },
+    "ranking": {
+      "description": "Ranking and ordering queries",
+      "response_type": "text_map_chart", 
+      "queries": [
+        {
+          "id": "ranking_001",
+          "query": "Which areas have the worst water access?",
+          "intent": "worst_access_ranking",
+          "response_template": "Areas with the worst water access are: {worst_areas}. These areas need immediate intervention as they serve {worst_population} people with accessibility scores below {threshold}.",
+          "map_instructions": {
+            "highlight_areas": "{worst_areas}",
+            "filter_by_category": ["Very Weak", "Weak"]
+          },
+          "chart_instructions": {"accessibility_ranking": "asc", "highlight_worst": 5}
+        },
+        {
+          "id": "ranking_002", 
+          "query": "Rank all areas by accessibility",
+          "intent": "full_ranking",
+          "response_template": "Complete accessibility ranking from best to worst: {full_ranking}. Top performers: {top_3}, Need improvement: {bottom_3}.",
+          "map_instructions": {"accessibility_heatmap": true},
+          "chart_instructions": {"accessibility_ranking": "desc", "show_all": true}
+        },
+        {
+          "id": "ranking_003",
+          "query": "Show top 5 areas with best access",
+          "intent": "top_access_ranking", 
+          "response_template": "Top 5 areas with best water access: {top_5_areas}. These areas have excellent infrastructure serving {top_5_population} people with average score of {top_5_avg_score}.",
+          "map_instructions": {
+            "highlight_areas": "{top_5_areas}",
+            "accessibility_heatmap": true
+          },
+          "chart_instructions": {"accessibility_ranking": "desc", "limit": 5}
+        }
+      ]
+    },
+    "complex_analysis": {
+      "description": "Multi-factor analysis and complex queries",
+      "response_type": "text_map_chart",
+      "queries": [
+        {
+          "id": "complex_001",
+          "query": "Which areas have high population but poor water access?",
+          "intent": "population_access_mismatch",
+          "response_template": "Areas with high population but poor water access (priority intervention zones): {priority_areas}. These areas have {total_affected_pop} people living with inadequate water access, representing {percentage_affected}% of the population in poorly served areas.",
+          "map_instructions": {
+            "highlight_priority_areas": "{priority_areas}",
+            "show_population_density": true,
+            "overlay_access_categories": true
+          },
+          "chart_instructions": {"population_vs_access_scatter": true, "priority_intervention_chart": true}
+        },
+        {
+          "id": "complex_002",
+          "query": "Where should we build new water points?",
+          "intent": "infrastructure_recommendation",
+          "response_template": "Recommended locations for new water points: {recommended_areas}. These areas have accessibility gaps, high population density, and insufficient water infrastructure. Priority should be: {priority_order}.",
+          "map_instructions": {
+            "show_infrastructure_gaps": true,
+            "highlight_areas": "{recommended_areas}",
+            "show_existing_water_points": true
+          },
+          "chart_instructions": {"infrastructure_gap_analysis": true, "recommendation_priority": true}
+        },
+        {
+          "id": "complex_003",
+          "query": "Analyze accessibility by transport mode",
+          "intent": "transport_mode_analysis",
+          "response_template": "Transport mode accessibility analysis: Walking accessibility averages {walking_avg}, Animal transport {animal_avg}, Driving {driving_avg}. Areas most dependent on walking: {walking_dependent}. Areas with good vehicle access: {vehicle_accessible}.",
+          "map_instructions": {
+            "show_transport_mode_overlay": true,
+            "accessibility_heatmap": true
+          },
+          "chart_instructions": {"transport_mode_comparison": true, "mode_dependency_chart": true}
+        }
+      ]
+    }
+  },
+  "dynamic_queries": {
+    "patterns": [
+      "Show me {location}",
+      "How is {location}",
+      "Compare {location1} with {location2}", 
+      "Which {superlative} {subject}",
+      "How many {subject} {condition}",
+      "What is the {statistic} {subject}",
+      "Where {question} {subject}",
+      "Analyze {subject} by {factor}"
+    ],
+    "variables": {
+      "location": ["GACABARI", "GACHOKA", "GACHURURIRI", "GATEGI", "GICHICHE", "KARABA", "KIAMBERE", "KIAMURINGA", "KIRIMA", "KITHUNTHIRI", "MAKIMA", "MAVURIA", "MBITA", "MBONDONI", "MWEA", "NYANGWA", "RIACHINA", "RIAKANAU", "WACHORO"],
+      "superlative": ["best", "worst", "highest", "lowest", "most", "least"],
+      "subject": ["areas", "sublocations", "people", "water points", "accessibility", "population"],
+      "condition": ["have poor access", "need intervention", "are well served", "have water points"],
+      "statistic": ["average", "total", "minimum", "maximum", "median"],
+      "question": ["should", "can", "would", "might"],
+      "factor": ["population", "transport mode", "water sources", "capacity"]
+    }
+  }
+}

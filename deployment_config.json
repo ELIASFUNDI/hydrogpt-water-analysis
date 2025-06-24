@@ -1,0 +1,106 @@
+{
+  "deployment_configuration": {
+    "project_name": "HydroGPT Water Accessibility Analysis System",
+    "version": "1.0.0",
+    "description": "AI-powered water accessibility analysis for Mbeere South Subcounty, Kenya using SCM-G2SFCA methodology",
+    
+    "backend": {
+      "framework": "FastAPI",
+      "python_version": "3.8+",
+      "database": "PostgreSQL with PostGIS",
+      "ai_integration": "Claude API (Anthropic)",
+      "port": 8000,
+      "host": "0.0.0.0"
+    },
+    
+    "frontend": {
+      "framework": "React",
+      "node_version": "18+",
+      "mapping_library": "Leaflet",
+      "port": 3000,
+      "build_command": "npm run build"
+    },
+    
+    "database_requirements": {
+      "tables": [
+        "sublocations (with slname, geom fields)",
+        "sublocation_statistics (with avg_combined_accessibility)",
+        "waterpoints (with capacity and location data)"
+      ],
+      "extensions": ["PostGIS"],
+      "coordinate_system": "EPSG:21037 (converted to WGS84)"
+    },
+    
+    "ai_capabilities": {
+      "query_types": [
+        "Location-specific analysis",
+        "Comparative analysis",
+        "Statistical summaries", 
+        "Ranking and prioritization",
+        "Infrastructure planning",
+        "Emergency response planning"
+      ],
+      "map_controls": [
+        "Area highlighting",
+        "Smart zooming",
+        "Category filtering",
+        "Water point overlay",
+        "Accessibility heatmaps"
+      ],
+      "chart_types": [
+        "Accessibility rankings",
+        "Category distributions",
+        "Population impact analysis",
+        "Comparative visualizations",
+        "Statistical summaries"
+      ]
+    },
+    
+    "environment_variables": {
+      "required": [
+        "ANTHROPIC_API_KEY",
+        "DATABASE_URL"
+      ],
+      "optional": [
+        "PORT",
+        "HOST"
+      ]
+    },
+    
+    "system_features": {
+      "responsive_ui": true,
+      "real_time_analysis": true,
+      "interactive_maps": true,
+      "ai_chat_interface": true,
+      "data_visualization": true,
+      "multi_language_support": false,
+      "offline_capability": false
+    }
+  },
+  
+  "hosting_instructions": {
+    "recommended_platforms": [
+      "Vercel (Frontend)",
+      "Railway/Render (Backend)", 
+      "AWS/Google Cloud (Full stack)",
+      "DigitalOcean (VPS)"
+    ],
+    
+    "deployment_steps": [
+      "1. Set up PostgreSQL database with PostGIS",
+      "2. Import sublocation and statistics data",
+      "3. Configure environment variables",
+      "4. Deploy backend API",
+      "5. Build and deploy frontend",
+      "6. Configure CORS and API endpoints",
+      "7. Test AI integration and database connectivity"
+    ],
+    
+    "performance_requirements": {
+      "backend": "Minimum 1GB RAM, 1 CPU core",
+      "database": "Minimum 2GB RAM, SSD storage recommended",
+      "frontend": "Static hosting sufficient",
+      "concurrent_users": "Estimated 50-100 users"
+    }
+  }
+}
